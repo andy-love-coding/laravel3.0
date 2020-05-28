@@ -316,3 +316,7 @@
   - 10.静态文件浏览器缓存问题
     - webpack.mis.js 中加入.version()，然后 layouts/app.blade.php 中引用css和js时用mix()函数
     - 然后执行编译 npm run dev
+### 2.9 安装 fontawesome 字体
+  ```
+  yarn add @fortawesome/fontawesome-free
+  ```
