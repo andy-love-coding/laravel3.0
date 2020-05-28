@@ -26,3 +26,7 @@
     ```
     cd ~/Homestead && vagrant provision && vagrant reload
     ```
+  - 6.统一代码风格
+    ```
+
+    ```
