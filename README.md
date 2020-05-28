@@ -84,3 +84,27 @@
       timezone' => 'Asia/Shanghai',
       'locale' => 'zh-CN',
       ```
+### 2.5 自定义辅助函数
+  - 1.新建帮助文件（我们把所有的『自定义辅助函数』都存放于 app/helpers.php 文件中）
+    ```
+    touch app/helpers.php
+    ```
+  - 2.自动加载帮助文件：在 composer.json 中的 autoload 中加入："files": ["app/helper.php"]
+    ```
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "classmap": [
+            "database/seeds",
+            "database/factories"
+        ],
+        "files": [
+            "app/helpers.php"
+        ]
+    }
+    ```
+  - 3.运行以下命令进行重新加载文件即可
+    ```
+    composer dump-autoload
+    ```
