@@ -316,7 +316,95 @@
   - 10.静态文件浏览器缓存问题
     - webpack.mis.js 中加入.version()，然后 layouts/app.blade.php 中引用css和js时用mix()函数
     - 然后执行编译 npm run dev
-### 2.9 安装 fontawesome 字体
-  ```
-  yarn add @fortawesome/fontawesome-free
-  ```
+### 2.8 安装 fontawesome 字体
+  - 1.安装
+    ```
+    yarn add @fortawesome/fontawesome-free
+    ```
+  - 2.载入 resources/sass/app.scss
+    ```
+    // Variables
+    @import 'variables';
+
+    // Bootstrap
+    @import '~bootstrap/scss/bootstrap';
+
+    // Fontawesome
+    @import '~@fortawesome/fontawesome-free/scss/fontawesome';
+    @import '~@fortawesome/fontawesome-free/scss/regular';
+    @import '~@fortawesome/fontawesome-free/scss/solid';
+    @import '~@fortawesome/fontawesome-free/scss/brands';
+    ```
+## 3 注册登录
+### 3.1 用户认证脚手架
+  - 1.用户认证脚手架
+    ```
+    php artisan ui:auth
+    ```
+    - 命令 ui:auth 会询问我们是否要覆盖 app.blade.php，因为我们在前面章节中已经自定义了『主要布局文件』—— app.blade.php，所以此处输入 no
+    - 该命令修改了路由 routes/web.php 
+      ```
+      // 通过用户认证脚手架(php artisan ui:auth) 会生成 Auth::routes();
+      Auth::routes();
+
+      // Auth::routes();是Laravel的认证路由，可以在 vendor/laravel/framework/src/Illuminate/Routing/Router.php 中搜 LoginController 即可找到定义的地方，以上等同于：
+      // 用户身份验证相关的路由
+      // Route::get('login', 'Auth\LoginController@showLoginForm')->name('login');
+      // Route::post('login', 'Auth\LoginController@login');
+      // Route::post('logout', 'Auth\LoginController@logout')->name('logout');
+
+      // 用户注册相关路由
+      // Route::get('register', 'Auth\RegisterController@showRegistrationForm')->name('register');
+      // Route::post('register', 'Auth\RegisterController@register');
+
+      // 密码重置相关路由
+      // Route::get('password/reset', 'Auth\ForgotPasswordController@showLinkRequestForm')->name('password.request');
+      // Route::post('password/email', 'Auth\ForgotPasswordController@sendResetLinkEmail')->name('password.email');
+      // Route::get('password/reset/{token}', 'Auth\ResetPasswordController@showResetForm')->name('password.reset');
+      // Route::post('password/reset', 'Auth\ResetPasswordController@reset')->name('password.update');
+
+      // Email 认证相关路由
+      // Route::get('email/verify', 'Auth\VerificationController@show')->name('verification.notice');
+      // Route::get('email/verify/{id}/{hash}', 'Auth\VerificationController@verify')->name('verification.verify');
+      // Route::post('email/resend', 'Auth\VerificationController@resend')->name('verification.resend');
+      ```
+    - 生成的视图
+      | 视图名称                  | 说明                   |
+      | ------------------------- | ---------------------- |
+      | register.blade.php        | 注册页面视图           |
+      | login.blade.php           | 登录页面视图           |
+      | verify.blade.php          | 邮箱认证视图           |
+      | passwords/email.blade.php | 提交邮箱发送邮件的视图 |
+      | passwords/reset.blade.php | 重置密码的页面视图     |
+    - 移除无用页面
+      ```
+      rm app/Http/Controllers/HomeController.php
+      rm resources/views/home.blade.php
+      ```
+  - 2.顶部导航加上链接 resources/views/layouts/_header.blade.php
+    ```
+    <li class="nav-item"><a class="nav-link" href="{{ route('login') }}">登录</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ route('register') }}">注册</a></li>
+    ```
+  - 3.本地化（添加语言包）
+    - 安装语言包
+      ```
+      composer require "overtrue/laravel-lang:~3.0"
+      ```
+    - 在 config/app.php 中将：
+      ```
+      Overtrue\LaravelLang\TranslationServiceProvider::class,
+      ```
+      替换为：
+      ```
+      Overtrue\LaravelLang\TranslationServiceProvider::class,
+      ```
+    - 在 config/app.php 中，将项目语言设置为中文
+      ```
+      'locale' => 'zh-CN',
+      ```
+    - 如果你想修改扩展包提供的语言文件，可以使用以下命令发布语言文件到项目里：
+      ```
+      php artisan lang:publish zh-CN
+      ```
+      发布后的语言文件存放于 resources/lang/zh-CN 文件夹。
