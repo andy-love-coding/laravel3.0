@@ -3,7 +3,8 @@
 Route::get('/', 'PagesController@root')->name('root');
 
 // 通过用户认证脚手架(php artisan ui:auth) 会生成 Auth::routes();
-Auth::routes();
+// Auth::routes();
+Auth::routes(['verify' => true]);
 
 // Auth::routes();是Laravel的认证路由，可以在 vendor/laravel/framework/src/Illuminate/Routing/Router.php 中搜 LoginController 即可找到定义的地方，以上等同于：
 // 用户身份验证相关的路由

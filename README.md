@@ -501,4 +501,159 @@
       }
       ```
 ### 3.5 邮箱认证
-  - 
+  - 1.修改模型位置 app/Models
+    ```
+    mkdir app/Models
+    mv app/User.php app/Models/User.php
+    ```
+    修改 app/Models/User.php 的命名空间
+    ```
+    namespace App\Models;
+    ```
+    - 编辑器全局搜索 App\User 替换为 App\Models\User (共有3个文件4处替换)
+    - 提交 `git add .` `git commit -m '移动 User 模型到 app/models 目录'`  `git push`
+  - 2.修改模型 (实现契约 使用Trait) app/Models/User.php
+    ```
+    <?php
+
+    namespace App\Models;
+
+    use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+    use Illuminate\Foundation\Auth\User as Authenticatable;
+    use Illuminate\Notifications\Notifiable;
+    use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+
+    class User extends Authenticatable implements MustVerifyEmailContract
+    {
+        use Notifiable, MustVerifyEmailTrait;
+
+        protected $fillable = [
+            'name', 'email', 'password',
+        ];
+
+        protected $hidden = [
+            'password', 'remember_token',
+        ];
+
+        protected $casts = [
+            'email_verified_at' => 'datetime',
+        ];
+    }
+    ```
+    - 使用Trait `use Notifiable, MustVerifyEmailTrait;`
+      - 加载使用 MustVerifyEmail trait，打开 vendor/laravel/framework/src/Illuminate/Auth/MustVerifyEmail.php 文件，可以看到以下四个方法：
+        - hasVerifiedEmail() 检测用户 Email 是否已认证；
+        - markEmailAsVerified() 将用户标示为已认证；
+        - sendEmailVerificationNotification() 发送 Email 认证的消息通知，触发邮件的发送；
+        - getEmailForVerification() 获取发送邮件地址，提供这个接口允许你自定义邮箱字段。
+    - 实现契约 `class User extends Authenticatable implements MustVerifyEmailContract`
+      - 可以打开 vendor/laravel/framework/src/Illuminate/Contracts/Auth/MustVerifyEmail.php ，可以看到此文件为 PHP 的接口类，继承此类将确保 User 遵守契约，拥有上面提到的四个方法。
+  - 3.发送认证邮件(源码阅读)
+      - 认证是通过 `app/Http/Controllers/Auth/RegisterController` 实现的，其使用了 `Illuminate\Foundation\Auth\RegistersUsers` trait，查看此 trait 中的 `register()` 方法
+        ```
+        public function register(Request $request)
+        {
+            // 检验用户提交的数据是否有误
+            $this->validator($request->all())->validate();
+
+            // 创建用户同时触发用户注册成功的事件，并将用户传参
+            event(new Registered($user = $this->create($request->all())));
+
+            // 登录用户
+            $this->guard()->login($user);
+
+            // 调用钩子方法 `registered()` 
+            return $this->registered($request, $user)
+                            ?: redirect($this->redirectPath());
+        }
+        ```
+        - 此方法处理了用户提交表单后的逻辑，我们把重点放在 event(new Registered($user = $this->create($request->all())));，这里使用了 Laravel 的事件系统，触发了 Registered 事件。
+        - 打开 `app/Providers/EventServiceProvider.php`文件，此文件的 $listen 属性里我们可以看到注册了 Registered 事件的监听器：
+          ```
+          protected $listen = [
+              Registered::class => [
+                  SendEmailVerificationNotification::class,
+              ],
+          ];
+          ```
+          - 打开 `SendEmailVerificationNotification` 类，阅读其源码：vendor/laravel/framework/src/Illuminate/Auth/Listeners/SendEmailVerificationNotification.php
+            ```
+            <?php
+
+            namespace Illuminate\Auth\Listeners;
+
+            use Illuminate\Auth\Events\Registered;
+            use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+            class SendEmailVerificationNotification
+            {
+                public function handle(Registered $event)
+                {
+                    // 如果 user 是继承于 MustVerifyEmail 并且还未激活的话
+                    if ($event->user instanceof MustVerifyEmail && ! $event->user->hasVerifiedEmail()) {
+                        // 发送邮件认证消息通知（认证邮件）
+                        $event->user->sendEmailVerificationNotification();
+                    }
+                }
+            }
+            ```
+  - 4.设置邮箱驱动 开始测试 .env
+    ```
+    MAIL_DRIVER=log
+    ```
+  - 5.强制邮箱认证（中间件）
+    - 1.新建一个中间件
+      ```
+      php artisan make:middleware EnsureEmailIsVerified
+      ``` 
+      ```
+      <?php
+
+      namespace App\Http\Middleware;
+
+      use Closure;
+
+      class EnsureEmailIsVerified
+      {
+          public function handle($request, Closure $next)
+          {
+              // 三个判断：
+              // 1. 如果用户已经登录
+              // 2. 并且还未认证 Email
+              // 3. 并且访问的不是 email 验证相关 URL 或者退出的 URL。
+              if ($request->user() &&
+                  ! $request->user()->hasVerifiedEmail() &&
+                  ! $request->is('email/*', 'logout')) {
+
+                  // 根据客户端要求返回对应的内容，如果客户端是ajax要求返回json，则abort()返回json数据，否则跳转「邮件认证提醒页面」
+                  return $request->expectsJson()
+                              ? abort(403, 'Your email address is not verified.')
+                              : redirect()->route('verification.notice');
+              }
+
+              return $next($request);
+          }
+      }
+      ```
+      - 中间件作用：所有web请求，如果用户未认证（3个判断），则提示用户认证，或者跳转「邮件认证提醒页面」；否则放行
+    - 2.注册中间，注册的时机确保在 StartSession 后面即可。app/Http/Kernel.php
+      ```
+      protected $middlewareGroups = [
+        'web' => [
+            \App\Http\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            // \Illuminate\Session\Middleware\AuthenticateSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \App\Http\Middleware\VerifyCsrfToken::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsureEmailIsVerified::class,      // <<--- 只需添加这一行
+        ],
+        ...
+      ]
+      ```
+    
+
+
+
+          
