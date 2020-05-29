@@ -447,3 +447,56 @@
       @endguest
     </ul>
     ```
+### 注册验证码
+  - 1.安装验证码 [captcha](https://github.com/mewebstudio/captcha)
+    ```
+    composer require "mews/captcha:~3.0"
+    ```
+  - 2.发布「验证码」配置文件，以便自定义设置「验证码」配置
+    ```
+    php artisan vendor:publish --provider='Mews\Captcha\CaptchaServiceProvider'
+    ```
+  - 3.前端展示「验证码」 resources/views/auth/register.blade.php
+    ```
+    <div class="form-group row">
+        <label for="captcha" class="col-md-4 col-form-label text-md-right">验证码</label>
+
+        <div class="col-md-6">
+            <input type="text" id="captcha" class="form-control @error('captcha') is-invalid @enderror" name="captcha" required>
+            <img src="{{ captcha_src('flat') }}"  class="thumbnail captcha mt-3 mb-2" onclick="this.src='/captcha/flat?' + Math.random()" title="点击重新获取验证码">
+
+            @error('captcha')
+                <span class="invalid-feedback" role="alert">
+                    {{ $message }}
+                </span>
+            @enderror
+        </div>
+    </div>
+    ```
+    验证码样式
+    ```
+    /* User register page */
+    .register-page {
+      img.captcha {
+        cursor: pointer;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 3px;
+      }
+    }
+    ```
+  - 4.后端验证 app/Http/Controllers/Auth/RegisterController.php
+      ```
+      protected function validator(array $data)
+      {
+          return Validator::make($data, [
+              'name' => ['required', 'string', 'max:255'],
+              'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+              'password' => ['required', 'string', 'min:6', 'confirmed'],
+              'captcha' => ['required', 'captcha'],
+          ], [
+              'captcha.required' => '验证码不能为空',
+              'captcha.captcha' => '请输入正确的验证码',
+          ]);
+      }
+      ```
