@@ -447,7 +447,7 @@
       @endguest
     </ul>
     ```
-### 注册验证码
+### 3.3 注册验证码
   - 1.安装验证码 [captcha](https://github.com/mewebstudio/captcha)
     ```
     composer require "mews/captcha:~3.0"
@@ -500,3 +500,5 @@
           ]);
       }
       ```
+### 3.5 邮箱认证
+  - 
