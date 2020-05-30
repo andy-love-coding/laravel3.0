@@ -741,5 +741,62 @@
           // 会话里闪存认证成功后的消息提醒
           session()->flash('success', '邮箱验证成功 ^_^');
       }
-      ```
-    
+      ```    
+### 3.7 重置密码
+  - 1.重置密码路由(已有)
+    ```
+    Auth::routes(['verify' => true]);
+    // 密码重置相关路由
+    // Route::get('password/reset', 'Auth\ForgotPasswordController@showLinkRequestForm')->name('password.request');
+    // Route::post('password/email', 'Auth\ForgotPasswordController@sendResetLinkEmail')->name('password.email');
+    // Route::get('password/reset/{token}', 'Auth\ResetPasswordController@showResetForm')->name('password.reset');
+    // Route::post('password/reset', 'Auth\ResetPasswordController@reset')->name('password.update');
+    ```
+  - 2.查看 `ResetsPasswords` Trait 源码 vendor/laravel/framework/src/Illuminate/Foundation/Auth/ResetsPasswords.php
+    ```
+    trait ResetsPasswords
+    {
+        .
+        .
+        .
+        // 处理 重设密码的逻辑
+        public function reset(Request $request)
+        {
+            // 验证用户提交的表单内容
+            $request->validate($this->rules(), $this->validationErrorMessages());
+
+            // 尝试重置用户的密码，成功的话会更新数据库里的密码，否则会
+            // 解析并将错误返回。
+            $response = $this->broker()->reset(
+                $this->credentials($request), function ($user, $password) {
+                    $this->resetPassword($user, $password);
+                }
+            );
+
+            // 如果重置成功，我们会调用 sendResetResponse 方法重定向到程序主页上，
+            // 失败的话调用 sendResetFailedResponse 返回并附带错误信息
+            return $response == Password::PASSWORD_RESET
+                        ? $this->sendResetResponse($request, $response)
+                        : $this->sendResetFailedResponse($request, $response);
+        }
+        .
+        .
+        .
+        protected function sendResetResponse(Request $request, $response)
+        {
+            return redirect($this->redirectPath())
+                                ->with('status', trans($response));
+        }
+        .
+        .
+        .
+    }
+    ```
+  - 3.控制器中重写 `sendResetResponse()` 方法 app/Http/Controllers/Auth/ResetPasswordController.php
+    ```
+    protected function sendResetResponse(Request $request, $response)
+    {
+        session()->flash('success', '密码更新成功，您已成功登录！');
+        return redirect($this->redirectPath());
+    }
+    ```
