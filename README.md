@@ -652,8 +652,94 @@
         ...
       ]
       ```
+### 3.6 认证后的提示
+  - 1.认证路由入口
+    ```
+    Route::get('email/verify/{id}/{hash}', 'Auth\VerificationController@verify')->name('verification.verify')
+    ```
+  - 2.认证控制器**触发「Verified事件」** app/Http/Controllers/Auth/VerificationController.php
+    ```
+    use Illuminate\Foundation\Auth\VerifiesEmails;
+
+    use VerifiesEmails;
+    public function __construct()
+    {
+        $this->middleware('auth'); // 所有认证动作必须登录
+        $this->middleware('signed')->only('verify'); // 对认证动作的URL进行「URL签名」
+        $this->middleware('throttle:6,1')->only('verify', 'resend'); // 每分钟限制6次请求
+    }
+    ```
+    - VerifiesEmails Trait `vendor/laravel/framework/src/Illuminate/Foundation/Auth/VerifiesEmails.php`
+      ```
+      /**
+      * 显示认证邮件提醒页面
+      */
+      public function show(Request $request)
+      {
+          return $request->user()->hasVerifiedEmail()
+                          ? redirect($this->redirectPath())
+                          : view('auth.verify');
+      }
+
+      /**
+      * 处理认证成功后的业务逻辑，请注意签名认证发生在 `signed` 中间件里，
+      * 在 VerificationController 的 __construct 方法里做了设定
+      */
+      public function verify(Request $request)
+      {
+          if (! hash_equals((string) $request->route('id'), (string) $request->user()->getKey())) {
+              throw new AuthorizationException;
+          }
+
+          if (! hash_equals((string) $request->route('hash'), sha1($request->user()->getEmailForVerification()))) {
+              throw new AuthorizationException;
+          }
+
+          if ($request->user()->hasVerifiedEmail()) {
+              return redirect($this->redirectPath());
+          }
+
+          if ($request->user()->markEmailAsVerified()) {
+              event(new Verified($request->user())); // 如果成功设置为已认证的话，触发「Verified事件」并将用户传参
+          }
+
+          return redirect($this->redirectPath())->with('verified', true);
+      }
+
+      /**
+      * 重新发送用户认证邮件
+      */
+      public function resend(Request $request)
+      {
+          if ($request->user()->hasVerifiedEmail()) {
+              return redirect($this->redirectPath());
+          }
+
+          $request->user()->sendEmailVerificationNotification();
+
+          return back()->with('resent', true);
+      }
+      ```
+  - 3.用`监听器` **监听「Verified事件」**
+    - 注册`Verified事件`的`监听器` app/Providers/EventServiceProvider.php
+      ```
+      protected $listen = [
+        ...
+          \Illuminate\Auth\Events\Verified::class => [
+              \App\Listeners\EmailVerified::class,
+          ],
+      ];
+      ```
+    - 生成`EmailVerified监听器`
+      ```
+      php artisan event:generate
+      ```
+    - 编写`EmailVerified监听器` app/Listeners/EmailVerified.php
+      ```
+      public function handle(Verified $event)
+      {
+          // 会话里闪存认证成功后的消息提醒
+          session()->flash('success', '邮箱验证成功 ^_^');
+      }
+      ```
     
-
-
-
-          
