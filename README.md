@@ -1291,7 +1291,7 @@
         }
     }
     ```
-### 授权访问
+### 4.8 授权访问
   - 1.必须登录（auth中间件） app/Http/Controllers/UsersController.php
     ```
     public function __construct()
@@ -1333,4 +1333,97 @@
           ...
       }
       ```
+## 5 帖子列表
+### 5.1 帖子分类
+  - 1.创建分类「模型」和「迁移文件」
+    ```
+    php artisan make:model Models/Category -m
+    ```
+    - `-m` 选项意为顺便创建数据库迁移文件（Migration
+  - 2.编写「分类迁移文件」 {timestamp}_create_categories_table.php
+    ```
+    public function up()
+    {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name')->index()->comment('名称');
+            $table->text('description')->nullable()->comment('描述');
+            $table->integer('post_count')->default(0)->comment('帖子数');
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('categories');
+    }
+    ```
+    - name —— 分类的名称，为字符串类型，index() 方法是加上索引，为 MySQL 下的搜索优化，comment() 方法能为表结构注释；
+    - 注意这里因业务逻辑使然，我们不需要为分类添加时间戳 $table->timestamps();
+  - 3.执行迁移 生成分类表
+    ```
+    php artisan migrate
+    ```
+  - 4.修改分类模型 app/Models/Category.php
+    ```
+    class Category extends Model
+    {
+        // 因为我们数据库表结构里未生成时间戳，这里需要使用 public $timestamps = false; 
+        // 进行设置，告知 Laravel 此模型在创建和更新时不需维护 created_at 和 updated_at 这两个字段。
+        public $timestamps = false;
+
+        protected $fillable = [
+            'name', 'description',
+        ];
+    }
+    ```
+  - 5.用迁移文件初始化分类数据
+    - 用迁移文件初始化分类数据的原因
+      - 我们想要 LaraBBS 论坛软件在安装的时，就初始化本文最前面提到的四个分类。
+      - 面对数据库内容填充的需求，一般情况下我们会使用 Laravel 的 『数据填充 Seed』 。可是在当下场景中，我们无法使用此功能。此一般是用来生成假数据，而现在我们需要生成的是项目的 初始化数据，这些数据是项目运行的一部分，在生产环境下也会使用到，而数据填充只能在开发时使用。
+      - 虽然 Laravel 没有自带此类解决方案，不过数据迁移功能倒是比较不错的替代方案。在功能定位上，数据迁移也是项目的一部分，执行的时机刚好是在项目安装时。并且区分执行先后顺序，这确保了初始化数据发生在数据表结构创建完成后。
+    - 接下来用「迁移文件来」 **初始化数据**，我们定义命名规范为 seed_(数据库表名称)_data ：
+      ```
+      php artisan make:migration seed_categories_data
+      ```
+    - 编写该「迁移文件」：
+      ```
+      class SeedCategoriesData extends Migration
+      {
+          public function up()
+          {
+              $categories = [
+                  [
+                      'name'        => '分享',
+                      'description' => '分享创造，分享发现',
+                  ],
+                  [
+                      'name'        => '教程',
+                      'description' => '开发技巧、推荐扩展包等',
+                  ],
+                  [
+                      'name'        => '问答',
+                      'description' => '请保持友善，互帮互助',
+                  ],
+                  [
+                      'name'        => '公告',
+                      'description' => '站点公告',
+                  ],
+              ];
+
+              DB::table('categories')->insert($categories);
+          }
+
+          public function down()
+          {
+              DB::table('categories')->truncate();
+          }
+      }
+      ```
+    - 执行该 「迁移文件」，初始化分类数据
+      ```
+      php artisan migrate
+      ```
+    
+
+
 
