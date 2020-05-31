@@ -858,4 +858,159 @@
     </div>
     @stop
     ```
+### 4.2 编辑个人资料 (FormRequest)
+  - 1.新增字段 `avatar` `introduction`
+    ```
+    php artisan make:migration add_avatar_and_introduction_to_users_table --table=users
+    ```
+    ```
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('avatar')->nullable();
+            $table->string('introduction')->nullable();
+        });
+    }
 
+    public function down()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('avatar');
+            $table->dropColumn('introduction');
+        });
+    }
+    ```
+    ```
+    php artisan migrate
+    ```
+  - 2.新增入口 resources/views/layouts/_header.blade.php
+    ```
+    <a class="dropdown-item" href="{{ route('users.show', Auth::id()) }}">个人中心</a>
+    <a class="dropdown-item" href="{{ route('users.edit', Auth::id()) }}">编辑资料</a>
+    ```
+  - 3.控制器方法(表单验证FormRequest) app/Http/Controllers/UsersController.php
+    ```
+    use App\Http\Requests\UserRequest;
+    public function edit(User $user)
+    {
+        return view('users.edit', compact('user'));
+    }
+    public function update(UserRequest $request, User $user)
+    {
+        $user->update($request->all());
+        return redirect()->route('users.show', $user->id)->with('success', '个人资料更新成功！');
+    }
+    ```
+    - [表单验证(FormRequest)](https://learnku.com/docs/laravel/6.x/validation/5144#16877a)
+      - 顶部引入了 `use App\Http\Requests\UserRequest;`, UserRequest 就是User模型的表单验证
+      - 表单请求验证（FormRequest） 是 Laravel 框架提供的用户表单数据验证方案，此方案相比手工调用 validator 来说，能处理更为复杂的验证逻辑，更加适用于大型程序。
+    - 创建 `UserRequest` 表单验证
+      ```
+      php artisan make:request UserRequest
+      ```
+    - 编写 `UserRequest` 表单验证 app/Http/Requests/UserRequest.php
+      ```
+      class UserRequest extends FormRequest
+      {
+          // authorize() 方法是表单验证自带的另一个功能 —— 权限验证
+          public function authorize()
+          {
+              return true; // 此处我们 return true; ，意味所有权限都通过即可
+          }
+
+          /**
+          * Get the validation rules that apply to the request.
+          *
+          * @return array
+          */
+          public function rules()
+          {
+              return [
+                  'name' => 'required|between:3,25|regex:/^[A-Za-z0-9]+$/|unique:users,name,' . Auth::id() . 'id',
+                  'email' => 'required|email',
+                  'introducton' => 'max:80',
+              ];
+          }
+
+          // 自定义错误消息
+          public function messages()
+          {
+              return [
+                  'name.unique' => '用户名已被占用，请重新填写',
+                  'name.regex' => '用户名只支持英文、数字、横杠和下划线。',
+                  'name.between' => '用户名必须介于 3 - 25 个字符之间。',
+                  'name.required' => '用户名不能为空。',
+              ];
+          }
+
+          // 自定义验证属性
+          // public function attributes()
+          // {
+          //     return [
+          //         'name' => '用户名',
+          //     ];
+          // }
+      }
+      ```
+  - 4.编辑视图(错误消息) resources/views/users/edit.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('content')
+    <div class="container">
+      <div class="col-md-8 offset-md-2">
+
+        <div class="card">
+          <div class="card-header">
+            <h4>
+              <i class="glyphicon glyphicon-edit"></i> 编辑个人资料
+            </h4>
+          </div>
+
+          <div class="card-body">
+            <form action="{{ route('users.update', $user->id) }}" method="post" accept-charset="UTF-8">
+              <input type="hidden" name="_method" value="PUT">
+              <input type="hidden" name="_token" value="{{ csrf_token() }}">
+
+              @include('shared._errors')
+
+              <div class="form-group">
+                <label for="name-field">用户名</label>
+                <input type="text" id="name-field" name="name" class="form-control" value="{{ old('name', $user->name) }}">
+              </div>
+
+              <div class="form-group">
+                <label for="email-field">邮 箱</label>
+                <input type="text" id="email-field" name="email" class="form-control" value="{{ old('email', $user->email) }}">
+              </div>
+
+              <div class="form-group">
+                <label for="introduction-field">个人简介</label>
+                <textarea name="introduction" id="introduction-field" rows="3" class="form-control">{{ old('introduction', $user->introduction) }}</textarea>
+              </div>
+
+              <div class="well well-sm">
+                <button type="submit" class="btn btn-primary">保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    @stop
+    ```
+    - **错误消息** 的局部视图 resources/views/shared/_errors.blade.php
+      ```
+      @if ($errors->count() > 0)
+      <div class="alert alert-danger">
+        <div class="mt-2"><b>有错误发生：</b></div>
+        <ul class="mt-2 mb-2">
+          @foreach ($errors->all() as $error)
+            <li><i class="glyphicon glyphicon-remove"></i> {{ $error }}</li>
+          @endforeach
+        </ul>
+      </div>
+      @endif
+      ```
+    - 
