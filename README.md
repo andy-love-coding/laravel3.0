@@ -1032,3 +1032,132 @@
     ```
     - $fillable 属性的作用是防止用户随意修改模型数据，只有在此属性里定义的字段，才允许修改，否则更新时会被忽略。
   - 3.[Carbon](https://github.com/briannesbitt/Carbon) 是 PHP 知名的日期和时间操作扩展，Laravel 框架中使用此扩展来处理时间、日期相关的操作。diffForHumans 是 Carbon 对象提供的方法，提供了可读性越佳的日期展示形式。
+### 4.4 上传图像
+  - 1.修改模型(添加avatar为修改) app/Models/User.php
+    ```
+    protected $fillable = [
+        'name', 'email', 'password', 'introduction', 'avatar'
+    ];
+    ```
+  - 2.编辑页面增加头像上传表单 resources/views/users/edit.blade.php
+    ```
+    <div class="form-group">
+      <label for="introduction-field">个人简介</label>
+      <textarea name="introduction" id="introduction-field" class="form-control" rows="3">{{ old('introduction', $user->introduction) }}</textarea>
+    </div>
+
+    <div class="form-group mb-4">
+      <label for="" class="avatar-label">用户头像</label>
+      <input type="file" name="avatar" class="form-control-file">
+
+      @if($user->avatar)
+        <br>
+        <img class="thumbnail img-responsive" src="{{ $user->avatar }}" width="200" />
+      @endif
+    </div>
+    ```
+    - 在 Laravel 中，我们可直接通过 [请求对象（Request）](https://learnku.com/docs/laravel/6.x/requests/5139#retrieving-uploaded-files) 来获取用户上传的文件，如以下两种方法
+      ```
+      // 第一种方法
+      $file = $request->file('avatar');
+
+      // 第二种方法，可读性更高
+      $file = $request->avatar;
+      ```
+  - 3.上传表单添加`enctype="multipart/form-data"`声明 resources/views/users/edit.blade.php
+    ```
+    <form action="{{ route('users.update', $user->id) }}" method="POST" 
+          accept-charset="UTF-8" 
+          enctype="multipart/form-data">
+    ```
+    - 请记住，在图片或者文件上传时，为表单添加此句声明是必须的
+  - 4.新建上传图像「工具类」ImageUploadHandler：app/Handlers/ImageUploadHandler.php
+    ```
+    <?php
+
+    namespace App\Handlers;
+
+    use  Illuminate\Support\Str;
+
+    class ImageUploadHandler
+    {
+        // 只允许以下后缀名的图片文件上传
+        protected $allowed_ext = ["png", "jpg", "gif", 'jpeg'];
+
+        public function save($file, $folder, $file_prefix)
+        {
+            // 构建存储的文件夹规则，值如：uploads/images/avatars/201709/21/
+            // 文件夹切割能让查找效率更高。
+            $folder_name = "uploads/images/$folder/" . date("Ym/d", time());
+
+            // 文件具体存储的物理路径，`public_path()` 获取的是 `public` 文件夹的物理路径。
+            // 值如：/home/vagrant/Code/larabbs/public/uploads/images/avatars/201709/21/
+            $upload_path = public_path() . '/' . $folder_name;
+
+            // 获取文件的后缀名，因图片从剪贴板里黏贴时后缀名为空，所以此处确保后缀一直存在
+            $extension = strtolower($file->getClientOriginalExtension()) ?: 'png';
+
+            // 拼接文件名，加前缀是为了增加辨析度，前缀可以是相关数据模型的 ID 
+            // 值如：1_1493521050_7BVc9v9ujP.png
+            $filename = $file_prefix . '_' . time() . '_' . Str::random(10) . '.' . $extension;
+
+            // 如果上传的不是图片将终止操作
+            if ( ! in_array($extension, $this->allowed_ext)) {
+                return false;
+            }
+
+            // 将图片移动到我们的目标存储路径中
+            $file->move($upload_path, $filename);
+
+            return [
+                'path' => config('app.url') . "/$folder_name/$filename"
+            ];
+        }
+    }
+    ```
+    - 我们将使用 app/Handlers 文件夹来存放本项目的工具类，『工具类（utility class）』是指一些跟业务逻辑相关性不强的类，Handlers 意为 **处理器** ，ImageUploadHandler 意为图片上传处理器，简单易懂。
+  - 5.控制器中调用「图片上传工具类」UsersController： app/Http/Controllers/UsersController.php
+    ```
+    use App\Handlers\ImageUploadHandler;
+
+    class UsersController extends Controller
+    {
+        ...
+
+        public function update(UserRequest $request, ImageUploadHandler $uploader, User $user)
+        {
+            $data = $request->all();
+
+            if ($request->avatar) {
+                $result = $uploader->save($request->avatar, 'avatars', $user->id);
+                if ($result) {
+                    $data['avatar'] = $result['path'];
+                }
+            }
+
+            $user->update($data);
+            return redirect()->route('users.show', $user->id)->with('success', '个人资料更新成功！');
+        }
+    }
+    ```
+  - 6.Git 版本控制(让某个文件夹不纳入git的版本)
+    - 添加文件 public/uploads/images/avatars/.gitignore
+      ```
+      *
+      !.gitignore
+      ```
+      - 上面的两行代码意为：当前文件夹下，忽略所有文件，除了 .gitignore。
+  - 7.显示头像
+    - 个人页面左侧头像：resources/views/users/show.blade.php
+      ```
+      <div class="card ">
+        <img class="card-img-top" src="{{ $user->avatar }}" alt="{{ $user->name }}">
+        <div class="card-body">
+      ```
+    - 导航栏图像：resources/views/layouts/_header.blade.php
+      ```
+      <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <img src="{{ Auth::user()->avatar }}" class="img-responsive img-circle" width="30px" height="30px">
+        {{ Auth::user()->name }}
+      </a>
+      ```
