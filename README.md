@@ -1039,7 +1039,7 @@
         'name', 'email', 'password', 'introduction', 'avatar'
     ];
     ```
-  - 2.编辑页面增加头像上传表单 resources/views/users/edit.blade.php
+  - 2.上传表单([通过Request获取上传文件](https://learnku.com/docs/laravel/6.x/requests/5139#retrieving-uploaded-files)) resources/views/users/edit.blade.php
     ```
     <div class="form-group">
       <label for="introduction-field">个人简介</label>
@@ -1116,6 +1116,7 @@
     }
     ```
     - 我们将使用 app/Handlers 文件夹来存放本项目的工具类，『工具类（utility class）』是指一些跟业务逻辑相关性不强的类，Handlers 意为 **处理器** ，ImageUploadHandler 意为图片上传处理器，简单易懂。
+    - Laravel 的『用户上传文件对象』底层使用了 Symfony 框架的 [UploadedFile](https://github.com/symfony/symfony/blob/3.0/src/Symfony/Component/HttpFoundation/File/UploadedFile.php) 对象进行渲染，为我们提供了便捷的文件读取和管理接口
   - 5.控制器中调用「图片上传工具类」UsersController： app/Http/Controllers/UsersController.php
     ```
     use App\Handlers\ImageUploadHandler;
@@ -1161,3 +1162,37 @@
         {{ Auth::user()->name }}
       </a>
       ```
+### 4.6 图片验证（用 FormRequest表单验证 来限制头像类型和分辨率)
+  - app/Http/Requests/UserRequest.php
+    ```
+     public function rules()
+    {
+        return [
+            'name' => 'required|between:3,25|regex:/^[A-Za-z0-9]+$/|unique:users,name,' . Auth::id() . 'id',
+            'email' => 'required|email',
+            'introducton' => 'max:80',
+            'avatar' => 'mimes:jpeg,bmp,png,gif|dimensions:min_width=208,min_height=208',
+        ];
+    }
+
+    // 自定义错误消息
+    public function messages()
+    {
+        return [
+            'avatar.mimes' =>'头像必须是 jpeg, bmp, png, gif 格式的图片',
+            'avatar.dimensions' => '图片的清晰度不够，宽和高需要 208px 以上',
+            'name.unique' => '用户名已被占用，请重新填写',
+            'name.regex' => '用户名只支持英文、数字、横杠和下划线。',
+            'name.between' => '用户名必须介于 3 - 25 个字符之间。',
+            'name.required' => '用户名不能为空。',
+        ];
+    }
+
+    // 自定义验证属性
+    // public function attributes()
+    // {
+    //     return [
+    //         'name' => '用户名',
+    //     ];
+    // }
+    ```
