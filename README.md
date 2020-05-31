@@ -1013,4 +1013,22 @@
       </div>
       @endif
       ```
-    - 
+### 4.3 显示个人资料
+  - 1.修改视图 resources/views/users/show.blade.php
+    ```
+    <div class="card-body">
+      <h5><strong>个人简介</strong></h5>
+      <p>{{ $user->introduction }}</p>
+      <hr>
+      <h5><strong>注册于</strong></h5>
+      <p>{{ $user->created_at->diffForHumans() }}</p>
+    </div>
+    ```
+  - 2.修改模型 $fillable    
+    ```
+    protected $fillable = [
+        'name', 'email', 'password', 'introduction', 
+    ];
+    ```
+    - $fillable 属性的作用是防止用户随意修改模型数据，只有在此属性里定义的字段，才允许修改，否则更新时会被忽略。
+  - 3.[Carbon](https://github.com/briannesbitt/Carbon) 是 PHP 知名的日期和时间操作扩展，Laravel 框架中使用此扩展来处理时间、日期相关的操作。diffForHumans 是 Carbon 对象提供的方法，提供了可读性越佳的日期展示形式。
