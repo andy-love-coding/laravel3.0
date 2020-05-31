@@ -9,6 +9,12 @@ use App\Handlers\ImageUploadHandler;
 
 class UsersController extends Controller
 {
+    public function __construct()
+    {
+        // except 黑名单排除不需要登录的，其余都需要登录
+        $this->middleware('auth', ['except' => ['show']]);
+    }
+
     public function show(User $user)
     {
         return view('users.show', compact('user'));
@@ -16,11 +22,13 @@ class UsersController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorize('update', $user);
         return view('users.edit', compact('user'));
     }
 
     public function update(UserRequest $request, ImageUploadHandler $uploader, User $user)
     {
+        $this->authorize('update', $user);
         $data = $request->all();
 
         // 如果上传了图像
