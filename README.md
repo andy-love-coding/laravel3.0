@@ -1451,7 +1451,20 @@
       git add -A                   // 添加所有 (将新文件 从 工作区 → 暂存区)
       git checkout -f              // 放弃本地修改，强制检出代码（将修改内容，包括新老文件，从 暂存区 → 工作区）
       ```
-    
-
-
-
+### [5.3 生成话题骨架](https://learnku.com/courses/laravel-intermediate-training/6.x/generate-topic/5560)
+  - 用代码生成器 生成话题骨架
+    ```
+    php artisan make:scaffold Topic --schema="title:string:index,body:text,user_id:bigInteger:unsigned:index,category_id:integer:unsigned:index,reply_count:integer:unsigned:default(0),view_count:integer:unsigned:default(0),last_reply_user_id:integer:unsigned:default(0),order:integer:unsigned:default(0),excerpt:text:nullable,slug:string:nullable"
+    ```
+    | 字段名称             | 描述                     | 字段类型         | 加索引缘由       | 其他                       |
+    | -------------------- | ------------------------ | ---------------- | ---------------- | -------------------------- |
+    | `title`              | 帖子标题                 | 字符串（String） | 文章搜索         | 无                         |
+    | `body`               | 帖子内容                 | 文本（text）     | 不需要           | 无                         |
+    | `user_id`            | 用户 ID                  | 整数（int）      | 数据关联         | `unsigned()`               |
+    | `category_id`        | 分类 ID                  | 整数（int）      | 数据关联         | `unsigned()`               |
+    | `reply_count`        | 回复数量                 | 整数（int）      | 文章回复数量排序 | `unsigned()`, `default(0)` |
+    | `view_count`         | 查看总数                 | 整数（int）      | 文章查看数量排序 | `unsigned()`, `default(0)` |
+    | `last_reply_user_id` | 最后回复的用户 ID        | 整数（int）      | 数据关联         | `unsigned()`, `default(0)` |
+    | `order`              | 可用来做排序使用         | 整数（int）      | 不需要           | `default(0)`               |
+    | `excerpt`            | 文章摘要，SEO 优化时使用 | 文本（text）     | 不需要           | `nullable()`               |
+    | `slug`               | SEO 友好的 URI           | 字符串（String） | 不需要           | `nullable()`               |
