@@ -1423,7 +1423,34 @@
       ```
       php artisan migrate
       ```
-### 5.2 
+### 5.2 [代码生成器(Laravel 5.x Scaffold Generator)](https://learnku.com/courses/laravel-intermediate-training/6.x/code-generator/5559)
+  - 安装
+    ```
+    composer require "summerblue/generator:6.*" --dev
+    ```
+  - 版本标记（方便后面测试后，回滚到这里）
+    ```
+    git add -A
+    git commit -m "新增 generator 扩展"
+    ```
+  - 测试运行(**回滚**)
+    ```
+    php artisan make:scaffold Projects --schema="name:string:index,description:text:nullable,subscriber_count:integer:unsigned:default(0)"
+    ```
+    - 运行完了，会发现修改了一些文件配置，生成很多新文件，执行了迁移文件。对这些做**回滚**：
+      ```
+      php artisan migrate:rollback // 先还还原数据库
+      git checkout .      // 还原修改文件到原始状态，只是还原之前就已经存在的文件。（将修改内容从 暂存区 → 工作区）
+      git status          // 若前面操作时有新增文件，此时会看到有未跟踪的文件 Untracded files
+      git clean -f -d     // clean 作用是清理项目，-f 是强制清理文件的设置，-d 选项命令连文件夹一并清除。
+      git status          // 再看时，发现：nothing to commit, working directory clean
+      ```
+      或者这样**回滚**
+      ```
+      php artisan migrate:rollback // 先还还原数据库
+      git add -A                   // 添加所有 (将新文件 从 工作区 → 暂存区)
+      git checkout -f              // 放弃本地修改，强制检出代码（将修改内容，包括新老文件，从 暂存区 → 工作区）
+      ```
     
 
 
