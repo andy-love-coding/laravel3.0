@@ -1468,3 +1468,152 @@
     | `order`              | 可用来做排序使用         | 整数（int）      | 不需要           | `default(0)`               |
     | `excerpt`            | 文章摘要，SEO 优化时使用 | 文本（text）     | 不需要           | `nullable()`               |
     | `slug`               | SEO 友好的 URI           | 字符串（String） | 不需要           | `nullable()`               |
+### 5.4 填充假数据(users、topics)
+  - 1.填充用户假数据
+    - 用户模型工厂 database/factories/UserFactory.php
+      ```
+      $factory->define(App\Models\User::class, function (Faker $faker) {
+          $date_time = $faker->date . ' ' . $faker->time;
+          return [
+              'name' => $faker->name,
+              'email' => $faker->unique()->safeEmail,
+              'remember_token' => Str::random(10),
+              'email_verified_at' => now(),
+              'password' => bcrypt('12345678'), // password
+              'introduction' => $faker->sentence(),
+              'created_at' => $date_time,
+              'updated_at' => $date_time,
+          ];
+      });
+      ```
+    - 用户填充文件 database/seeds/UsersTableSeeder.php
+      ```
+      php artisan make:seed UsersTableSeeder
+      ```
+      ```
+      public function run()
+      {
+          // 获取 Faker 实例
+          $faker = app(Faker\Generator::class);
+
+          // 头像假数据
+          $avatars = [
+              'https://cdn.learnku.com/uploads/images/201710/14/1/s5ehp11z6s.png',
+              'https://cdn.learnku.com/uploads/images/201710/14/1/Lhd1SHqu86.png',
+              'https://cdn.learnku.com/uploads/images/201710/14/1/LOnMrqbHJn.png',
+              'https://cdn.learnku.com/uploads/images/201710/14/1/xAuDMxteQy.png',
+              'https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png',
+              'https://cdn.learnku.com/uploads/images/201710/14/1/NDnzMutoxX.png',
+          ];
+
+          // 生成数据集合
+          $users = factory(User::class)
+                          ->times(10)
+                          ->make()
+                          ->each(function ($user, $index)
+                              use ($faker, $avatars)
+          {
+              // 从头像数组中随机取出一个并赋值
+              $user->avatar = $faker->randomElement($avatars);
+          });
+
+          // 让隐藏字段可见，并将数据集合转换为数组
+          $user_array = $users->makeVisible(['password', 'remember_token'])->toArray();
+
+          // 插入到数据库中
+          User::insert($user_array);
+
+          // 单独处理第一个用户的数据
+          $user = User::find(1);
+          $user->name = 'Summer';
+          $user->email = 'summer@example.com';
+          $user->avatar = 'https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png';
+          $user->save();
+
+      }
+      ```
+    - 注册填充文件 database/seeds/DatabaseSeeder.php
+      ```
+      public function run()
+      {
+          $this->call(UsersTableSeeder::class);
+          // $this->call(TopicsTableSeeder::class);
+      }
+      ```
+    - 执行填充
+      ```
+      php artisan migrate:refresh --seed
+      ```
+  - 2.填充话题假数据
+    - 看看话题模型 app/Models/Topic.php
+      ```
+      class Topic extends Model
+      {
+          protected $fillable = ['title', 'body', 'user_id', 'category_id', 'reply_count', 'view_count', 'last_reply_user_id', 'order', 'excerpt', 'slug'];
+      }
+      ```
+      「生成器」已自动写入了 $fillable 允许填充的字段数组，不要再做修改
+    - 话题模型工厂 database/factories/TopicFactory.php
+      ```
+      $factory->define(App\Models\Topic::class, function (Faker $faker) {
+
+          $sentence = $faker->sentence();
+
+          // 随机取一个月以内的时间
+          $updated_at = $faker->dateTimeThisMonth();
+
+          // 传参为生成最大时间不超过，因为创建时间需永远比更改时间要早
+          $created_at = $faker->dateTimeThisMonth($updated_at);
+
+          return [
+              'title' => $sentence,
+              'body' => $faker->text(),
+              'excerpt' => $sentence,
+              'created_at' => $created_at,
+              'updated_at' => $updated_at,
+          ];
+      });
+      ```
+    - 话题填充文件 database/seeds/TopicsTableSeeder.php
+      ```
+      public function run()
+      {
+          // 所有用户 ID 数组，如：[1,2,3,4]
+          $user_ids = User::all()->pluck('id')->toArray();
+
+          // 所有分类 ID 数组，如：[1,2,3,4]
+          $category_ids = Category::all()->pluck('id')->toArray();
+
+          // 获取 Faker 实例
+          $faker = app(Faker\Generator::class);
+
+          $topics = factory(Topic::class)
+                          ->times(100)
+                          ->make()
+                          ->each(function ($topic, $index)
+                              use ($user_ids, $category_ids, $faker)
+          {
+              // 从用户 ID 数组中随机取出一个并赋值
+              $topic->user_id = $faker->randomElement($user_ids);
+
+              // 话题分类，同上
+              $topic->category_id = $faker->randomElement($category_ids);
+          });
+
+          // 将数据集合转换为数组，并插入到数据库中
+          Topic::insert($topics->toArray());
+      }
+      ```
+    - 注册填充文件 database/seeds/DatabaseSeeder.php
+      ```
+      public function run()
+      {
+          $this->call(UsersTableSeeder::class);
+          $this->call(TopicsTableSeeder::class);
+      }
+      ```
+      注意：run() 方法里的顺序，我们先生成用户数据，再生出话题数据。
+    - 执行填充
+      ```
+      php artisan migrate:refresh --seed
+      ```
