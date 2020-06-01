@@ -1423,6 +1423,7 @@
       ```
       php artisan migrate
       ```
+### 5.2 
     
 
 
