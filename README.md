@@ -1617,3 +1617,160 @@
       ```
       php artisan migrate:refresh --seed
       ```
+### 5.5 话题列表页面
+  - 「话题模型』关联「用户模型」和「分类模型」 app/Models/Topic.php
+    ```
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    ```
+  - 话题列表视图（用appends()使分页链接继承请求参数） resources/views/topics/index.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('title', '话题列表')
+
+    @section('content')
+
+    <div class="row mb-5">
+      <div class="col-lg-9 col-md-9 topic-list">
+        <div class="card ">
+
+          <div class="card-header bg-transparent">
+            <ul class="nav nav-pills">
+              <li class="nav-item"><a class="nav-link active" href="#">最后回复</a></li>
+              <li class="nav-item"><a class="nav-link" href="#">最新发布</a></li>
+            </ul>
+          </div>
+
+          <div class="card-body">
+            {{-- 话题列表 --}}
+            @include('topics._topic_list', ['topics' => $topics])
+            {{-- 分页 --}}
+            <div class="mt-5">
+              {!! $topics->appends(Request::except('page'))->render() !!}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-3 sidebar">
+        @include('topics._sidebar')
+      </div>
+    </div>
+
+    @endsection
+    ```
+    - [分页 appends()](https://leoyang90.gitbooks.io/laravel-source-analysis/content/Laravel%20Database%E2%80%94%E2%80%94%E5%88%86%E9%A1%B5%E5%8E%9F%E7%90%86%E4%B8%8E%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90.html) 可以使用 appends 方法附加查询参数到分页链接中，使 URI 中的的请求参数得到继承
+      - `$topics->appends(Request::except('page'))->render()` 的意思是：把 URI 中除了page的其余参数，都加到分页链接中去，即 URI 中的参数得到了继承 （排除 page 参数是因为，分页链接中带有 page 参数）
+    - 列表子视图 resources/views/topics/_topic_list.blade.php
+      ```
+      @if (count($topics))
+        <ul class="list-unstyled">
+          @foreach ($topics as $topic)
+            <li class="media">
+              <div class="media-left">
+                <a href="{{ route('users.show', [$topic->user_id]) }}">
+                  <img class="media-object img-thumbnail mr-3" style="width: 52px; height: 52px;" src="{{ $topic->user->avatar }}" title="{{ $topic->user->name }}">
+                </a>
+              </div>
+
+              <div class="media-body">
+
+                <div class="media-heading mt-0 mb-1">
+                  <a href="{{ route('topics.show', [$topic->id]) }}" title="{{ $topic->title }}">
+                    {{ $topic->title }}
+                  </a>
+                  <a class="float-right" href="{{ route('topics.show', [$topic->id]) }}">
+                    <span class="badge badge-secondary badge-pill"> {{ $topic->reply_count }} </span>
+                  </a>
+                </div>
+
+                <small class="media-body meta text-secondary">
+
+                  <a class="text-secondary" href="#" title="{{ $topic->category->name }}">
+                    <i class="far fa-folder"></i>
+                    {{ $topic->category->name }}
+                  </a>
+
+                  <span> • </span>
+                  <a class="text-secondary" href="{{ route('users.show', [$topic->user_id]) }}" title="{{ $topic->user->name }}">
+                    <i class="far fa-user"></i>
+                    {{ $topic->user->name }}
+                  </a>
+                  <span> • </span>
+                  <i class="far fa-clock"></i>
+                  <span class="timeago" title="最后活跃于：{{ $topic->updated_at }}">{{ $topic->updated_at->diffForHumans() }}</span>
+                </small>
+
+              </div>
+            </li>
+
+            @if ( ! $loop->last)
+              <hr>
+            @endif
+
+          @endforeach
+        </ul>
+
+      @else
+        <div class="empty-block">暂无数据 ~_~ </div>
+      @endif
+      ```
+    - 右边栏子视图 resources/views/topics/_sidebar.blade.php
+      ```
+      <div class="card ">
+        <div class="card-body">
+          右边导航栏
+        </div>
+      </div>
+      ```
+  - 样式优化 resources/sass/app.scss
+    ```
+    /* Topic Index Page */
+    .topics-index-page {
+      .topic-list {
+        .nav>li>a {
+          position: relative;
+          display: block;
+          padding: 5px 14px;
+          font-size: 0.9em;
+        }
+
+        a {
+          color: #444444;
+        }
+
+        .meta {
+          font-size: 0.9em;
+          color: #b3b3b3;
+
+          a {
+            color: #b3b3b3;
+          }
+        }
+
+        .badge {
+          background-color: #d8d8d8;
+        }
+
+        hr {
+          margin-top: 12px;
+          margin-bottom: 12px;
+          border: 0;
+          border-top: 1px solid #dcebf5;
+        }
+      }
+    }
+
+    /* Add container and footer space */
+    #app > div.container {
+      margin-bottom: 100px;
+    }
+    ```
