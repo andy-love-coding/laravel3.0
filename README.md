@@ -1774,3 +1774,23 @@
       margin-bottom: 100px;
     }
     ```
+### 5.6 性能优化 (预加载 N+1)
+  - 安装 Debugbar
+    ```
+    composer require "barryvdh/laravel-debugbar:~3.2" --dev
+    ```
+  - 发布配置文件
+    ```
+    php artisan vendor:publish --provider="Barryvdh\Debugbar\ServiceProvider"
+    ```
+  - 修改配置文件, 打开 config/debugbar.php，将 `enabled` 的值设置为：
+    ```
+    'enabled' => env('APP_DEBUG', false),
+    ```
+    修改完以后，Debugbar 分析器的启动状态将由 .env 文件中 APP_DEBUG 值决定。
+  - 刷新列表页面即可看到我们的开发者工具栏
+    - 在 `Debugbar` 中可以看到数据库查询次数，为了读取 user 和 category，每次的循环都要查一下 users 和 categories 表，如果我第一次查询出来的是 N 条记录，那么最终需要执行的 SQL 语句就是 N+1 次。
+  - 用 [预加载](https://learnku.com/docs/laravel/6.x/eloquent-relationships/5177#eager-loading) 解决 N+1 问题 app/Http/Controllers/TopicsController.php
+    ```
+    $topics = Topic::with('user', 'category')->paginate();
+    ```
