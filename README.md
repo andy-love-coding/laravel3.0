@@ -1900,3 +1900,93 @@
         return active_class((if_route('categories.show') && if_route_param('category', $category_id)));
       }
       ```
+### 5.8 话题列表排序
+  - 1.排序的思路
+    - 我们可以通过 URI 传参 order 给控制器，控制器根据此参数来决定数据的读取逻辑。因为『分类下的话题列表』也会用到排序，并且是在不同的控制器中，所以在此处为了复用性考虑，我们将会把排序逻辑代码放置于 Topic 数据模型中。作为一个合格的程序员，编码时需时刻注意代码复用性。
+    - 接下来的步骤是：
+      - Topic 中编写排序逻辑；
+      - TopicsController 控制器中调用；
+      - CategoriesController 控制器中调用。
+  - 2.编写排序逻辑(查询作用域) app/Models/Topic.php
+    ```
+    public function scopeWithOrder($query, $order)
+    {
+        // 不同的排序，使用不用的数据读取逻辑
+        switch ($order) {
+            case 'recent':
+                $query->recent();
+                break;
+            
+            default:
+                $query->recentReplied();
+                break;
+        }
+    }
+
+    public function scopeRecent($query)
+    {
+        // 按创建时间排序
+        return $query->orderBy('created_at', 'desc');
+    }
+
+    public function scopeRecentReplied($query)
+    {
+        // 当话题哟新回复时，我们将辨析逻辑更新话题模型的 reply_count 属性
+        // 此时会自动触发框架对数据模型 updated_at 时间错的更新
+        return $query->orderBy('updated_at', 'desc');
+    }
+    ```
+    - 查询作用域：作用域总是返回一个查询构造器实例：
+      - [本地作用域](https://learnku.com/docs/laravel/6.x/eloquent/5176#4330c1)
+        ```
+        public function scopeRecent($query) { }
+        public function scopeRecentReplied($query) { }
+        ```
+      - [动态作用域](https://learnku.com/docs/laravel/6.x/eloquent/5176#acba4e)
+        ```
+        public function scopeWithOrder($query, $order) { }
+        ```
+      - 作用域定义时，加 `scope` 前缀，调用时不用加 `scope` 前缀
+      - 可以了解下 [全局作用域](https://learnku.com/docs/laravel/6.x/eloquent/5176#858495)，全局作用域 用匿名函数的方式定义最好，省得去新建一个类。
+  - 3.控制器中调用(查询作用域)
+    - app/Http/Controllers/TopicsController.php
+      ```
+      public function index(Request $request, Topic $topic)
+      {
+        // $topics = Topic::with('user', 'category')->paginate();
+        $topics = $topic->withOrder($request->order) // 排序
+                        ->with('user', 'category')	 // 预加载防止 N+1 问题
+                        ->paginate(10);
+        return view('topics.index', compact('topics'));
+      }
+      ```
+    - app/Http/Controllers/CategoriesController.php
+      ```
+      public function show(Category $category, Request $request, Topic $topic)
+      {
+          // 读取分类 ID 关联的话题，并按每 20 条分页
+          // $topics = Topic::where('category_id', $category->id)->paginate(20);
+          $topics = $topic->withOrder($request->order) // 排序
+                          ->where('category_id', $category->id)
+                          ->with('user', 'category')  // 预加载防止 N+1 问题
+                          ->paginate(10);
+          
+          return view('topics.index', compact('topics', 'category'));
+      }
+      ```
+  - 4.修改模板(查询参数) resources/views/topics/index.blade.php
+    ```
+    <ul class="nav nav-pills">
+      <li class="nav-item">
+        <a class="nav-link {{ active_class( ! if_query('order', 'recent')) }}" href="{{ Request::url() }}?order=default">
+          最后回复
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{ active_class(if_query('order', 'recent')) }}" href="{{ Request::url() }}?order=recent">
+          最新发布
+        </a>
+      </li>
+    </ul>
+    ```
+    - 通过 URL 中的 order 参数，先判断 active css类名是否该点亮；再通控制器调用`动态作用域` 接收 `order` 参数实现排序
