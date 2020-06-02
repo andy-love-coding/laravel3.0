@@ -2476,3 +2476,63 @@
     ```
     - 由于 `topic_body` 样式内容太多，所以将其放置于另一个文件中：`resources/sass/_topic_body.scss`
       - 注意，在 `resources/sass/app.scss` 中引用时 `@import "topic_body";` 没有前缀 `_`
+### 6.5 XSS 安全漏洞(HTMLPurifier)
+  - [XSS 安全漏洞](https://learnku.com/courses/laravel-intermediate-training/6.x/safety-problem/5572)
+    - XSS 也称跨站脚本攻击 (Cross Site Scripting)，恶意攻击者往 Web 页面里插入恶意 JavaScript 代码，当用户浏览该页之时，嵌入其中 Web 里面的 JavaScript 代码会被执行，从而达到恶意攻击用户的目的。
+    - 一种比较常见的 XSS 攻击是 Cookie 窃取。我们都知道网站是通过 Cookie 来辨别用户身份的，一旦恶意攻击者能在页面中执行 JavaScript 代码，他们即可通过 JavaScript 读取并窃取你的 Cookie，拿到你的 Cookie 以后即可伪造你的身份登录网站。
+  - 帖子显示漏洞{!! !!}
+    ```
+    <div class="topic-body">
+        {!! $topic->body !!}
+    </div>
+    ```
+    - Blade 的 {!! !!} 语法是直接输出数据，不会对数据做任何处理。如果此时输出数据里有 JavaScript 代码，就很不安全。
+  - 虽然 Simditor编辑器 对 $topic->body 进行了转义，但也不安全。因为用户不一定是网页上向服务器提交内容，有太多的工具可以发起操作。
+  - 解决方案是：对用户提交的数据进行过滤（HTMLPurifier）
+    - 安装 `HTMLPurifier`
+      ```
+      composer require "mews/purifier:~3.0"
+      ```
+    - 生成配置
+      ```
+      php artisan vendor:publish --provider="Mews\Purifier\PurifierServiceProvider"
+      ```
+    - 编辑配置 config/purifier.php
+      ```
+      <?php
+
+      return [
+          'encoding'      => 'UTF-8',
+          'finalize'      => true,
+          'cachePath'     => storage_path('app/purifier'),
+          'cacheFileMode' => 0755,
+          'settings'      => [
+              'user_topic_body' => [
+                  'HTML.Doctype'             => 'XHTML 1.0 Transitional',
+                  'HTML.Allowed'             => 'div,b,strong,i,em,a[href|title],ul,ol,ol[start],li,p[style],br,span[style],img[width|height|alt|src],*[style|class],pre,hr,code,h2,h3,h4,h5,h6,blockquote,del,table,thead,tbody,tr,th,td',
+                  'CSS.AllowedProperties'    => 'font,font-size,font-weight,font-style,margin,width,height,font-family,text-decoration,padding-left,color,background-color,text-align',
+                  'AutoFormat.AutoParagraph' => true,
+                  'AutoFormat.RemoveEmpty'   => true,
+              ],
+          ],
+      ];
+      ```
+      - 配置里的 `user_topic_body` 是我们为话题内容定制的，配合 `clean()` 方法使用
+        ```
+        $topic->body = clean($topic->body, 'user_topic_body');
+        ```
+  - 在观察器中过滤 app/Observers/TopicObserver.php
+    ```
+    class TopicObserver
+    {
+        // 数据写入数据库之前
+        public function saving(Topic $topic)
+        {
+            // 使用「HTMLPurifier扩展」的 clean() 方法过滤用户提交内容，第二个参数是 config/purifier 中的配置项
+            $topic->body = clean($topic->body, 'user_topic_body');
+
+            $topic->excerpt = make_excerpt($topic->body);
+        }
+    }
+    ```
+
