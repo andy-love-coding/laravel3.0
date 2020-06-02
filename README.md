@@ -1775,10 +1775,25 @@
     }
     ```
 ### 5.6 性能优化 (预加载 N+1)
-  - 安装 Debugbar
+  - 安装 Debugbar（[版本号 ~ ^](https://jochen-z.com/articles/30/differences-between-the-composer-version-range-symbols-and)）
     ```
     composer require "barryvdh/laravel-debugbar:~3.2" --dev
     ```
+    - 版本格式：主版本号。次版本号。修订号，如 `1.0.1` , `3.2.39` 。版本号递增规则如下：
+      - 主版本号：当你做了不兼容的 API 修改
+      - 次版本号：当你做了向下兼容的功能性新增
+      - 修订号：当你做了向下兼容的问题修正。
+    - `波浪号 ~`
+      - `〜1.2` 代表 `1.2 <= 版本号 < 2.0.0` 
+      - `〜1.2.3` 代表 `1.2.3 <= 版本号 < 1.3.0`
+      - `波浪号 ~` 表示「从最后一位数字递增」
+    - `插入号 ^`
+      - `^1.2` 代表 `1.2 <= 版本号 < 2.0.0`
+      - `^1.2.3` 代表 `1.2.3 <= 版本号 < 2.0.0`
+      - `插入号 ^` 表示「从第二位数字递增」
+    - `插入号 ^` 的特殊情况
+      - 对于 `pre-1.0` ，它还考虑到安全性，会将 `^0.3` 视为 `0.3.0 <= 版本号 < 0.4.0`
+
   - 发布配置文件
     ```
     php artisan vendor:publish --provider="Barryvdh\Debugbar\ServiceProvider"
@@ -1794,3 +1809,94 @@
     ```
     $topics = Topic::with('user', 'category')->paginate();
     ```
+### 5.7 分类下的话题列表
+  - 1.路由
+    ```
+    Route::resource('categories', 'CategoriesController', ['only' => ['show']]);
+    ```
+  - 2.控制器 app/Http/Controllers/CategoriesController.php
+    ```
+    php artisan make:controller CategoriesController
+    ```
+    ```
+    public function show(Category $category)
+    {
+        // 读取分类 ID 关联的话题，并按每 20 条分页
+        $topics = Topic::where('category_id', $category->id)->paginate(20);
+        // 传参变量话题和分类到模板中
+        return view('topics.index', compact('topics', 'category'));
+    }
+    ```
+  - 3.局部视图中 添加 `categories.show` 路由链接 resources/views/topics/_topic_list.blade.php
+    ```
+    <a class="text-secondary" href="{{ route('categories.show', $topic->category_id) }}" title="{{ $topic->category->name }}">
+      <i class="far fa-folder"></i>
+      {{ $topic->category->name }}
+    </a>
+    ```
+  - 4.列表视图中 显示当前分类信息 resources/views/topics/index.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('title', '话题列表')
+
+    @section('content')
+
+    <div class="row mb-5">
+      <div class="col-lg-9 col-md-9 topic-list">
+        @if (isset($category))
+          <div class="alert alert-info" role="alert">
+            {{ $category->name }} ：{{ $category->description }}
+          </div>
+        @endif
+
+        <div class="card ">
+    ```
+  - 5.发现分类页样式不对(路由css类名)
+    - 这是因为 `app.scss` 中定义了 `路由 css 类名称` ，我们用了同一个模板，但是分类页路由名称已变为 `categories.sho`。修复方法很简单，只需要样式表中新添加选择器即可：
+      ```
+      /* Topic Index Page */
+      .topics-index-page, .categories-show-page { 
+      ```
+  - 6.列表页面标题定制 resources/views/topics/index.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('title', isset($category) ? $category->name : '话题列表')
+    ```
+  - 7.增加顶部导航(laravel-active扩展包、辅助函数) resources/views/layouts/_header.blade.php
+    ```
+    <!-- Left Side Of Navbar -->
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item {{ active_class(if_route('topics.index')) }}"><a class="nav-link" href="{{ route('topics.index') }}">话题</a></li>
+      <li class="nav-item {{ category_nav_active(1) }}"><a class="nav-link" href="{{ route('categories.show', 1) }}">分享</a></li>
+      <li class="nav-item {{ category_nav_active(2) }}"><a class="nav-link" href="{{ route('categories.show', 2) }}">教程</a></li>
+      <li class="nav-item {{ category_nav_active(3) }}"><a class="nav-link" href="{{ route('categories.show', 3) }}">问答</a></li>
+      <li class="nav-item {{ category_nav_active(4) }}"><a class="nav-link" href="{{ route('categories.show', 4) }}">公告</a></li>
+    </ul>
+    ```
+    - [laravel-active](https://github.com/summerblue-ext-forks/active) 扩展包提供了「active_class」方法
+      - 安装 `laravel-active` 扩展包
+        ```
+        composer require "summerblue/laravel-active:6.*"
+        ```
+      - 「active_class」方法：如果传参满足指定条件 ($condition) ，此函数将返回 $activeClass，否则返回 $inactiveClass
+      - 此扩展包提供了一批函数让我们更方便的进行 $condition 判断：
+        ```
+        if_route () - 判断当前对应的路由是否是指定的路由；
+        if_route_param () - 判断当前的 url 有无指定的路由参数。
+        if_query () - 判断指定的 GET 变量是否符合设置的值；
+        if_uri () - 判断当前的 url 是否满足指定的 url；
+        if_route_pattern () - 判断当前的路由是否包含指定的字符；
+        if_uri_pattern () - 判断当前的 url 是否含有指定的字符；
+        ```
+    - 新增一个辅助函数 category_nav_active ，在 app/helpers.php 中：
+      ```
+      // 为当前活跃「分类路由」，添加 active 的css类名 
+      function category_nav_active($category_id)
+      {
+        // active_class 是 summerblue/laravel-active 扩展提供的方法
+        // 如果「路由名」是 categories.show 并且 「参数」category 的值是 $category_id ，则返回 'actvie' 作为 css 类名
+        return active_class((if_route('categories.show') && if_route_param('category', $category_id)));
+      }
+      ```
