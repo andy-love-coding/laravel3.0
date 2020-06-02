@@ -1991,4 +1991,249 @@
     ```
     - 通过 URL 中的 order 参数，先判断 active css类名是否该点亮；再通控制器调用`动态作用域` 接收 `order` 参数实现排序
 ### 5.9 用户发布的话题
+  - 1.修改导航栏，新增个人中心的链接，并为下拉列表增加图标 resources/views/layouts/_header.blade.php
+    ```
+    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+      <a class="dropdown-item" href="{{ route('users.show', Auth::id()) }}">
+        <i class="far fa-user mr-2"></i>
+        个人中心
+      </a>
+      <div class="dropdown-divider"></div>
+      <a class="dropdown-item" href="{{ route('users.edit', Auth::id()) }}">
+        <i class="far fa-edit mr-2"></i>
+        编辑资料
+      </a>
+      <div class="dropdown-divider"></div>
+      <a class="dropdown-item" id="logout" href="#">
+        <form action="{{ route('logout') }}" method="POST" onsubmit="return confirm('您确定要退出吗？');">
+          {{ csrf_field() }}
+          <button class="btn btn-block btn-danger" type="submit" name="button">退出</button>
+        </form>
+      </a>
+    </div>
+    ```
+  - 2.新增模型关联 app/Models/User.php
+    ```
+    public function topics()
+    {
+        return $this->hasMany(Topic::class);
+    }
+    ```
+  - 3.修改模板 resources/views/users/show.blade.php
+    ```
+    {{-- 用户发布的内容 --}}
+    <div class="card">
+      <div class="card-body">
+        <ul class="nav nav-tabs">
+          <li class="nav-item"><a class="nav-link active bg-transparent" href="#">Ta 的话题</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Ta 的回复</a></li>
+        </ul>
+        @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
+      </div>
+    </div>
+    ```
+    - 子模板 resources/views/users/_topics.blade.php
+      ```
+      @if (count($topics))
 
+        <ul class="list-group mt-4 border-0">
+          @foreach ($topics as $topic)
+            <li class="list-group-item pl-2 pr-2 border-right-0 border-left-0 @if($loop->first) border-top-0 @endif">
+              <a href="{{ route('topics.show', $topic->id) }}">
+                {{ $topic->title }}
+              </a>
+              <span class="meta float-right text-secondary">
+                {{ $topic->reply_count }} 回复
+                <span> ⋅ </span>
+                {{ $topic->created_at->diffForHumans() }}
+              </span>
+            </li>
+          @endforeach
+        </ul>
+
+      @else
+        <div class="empty-block">暂无数据 ~_~ </div>
+      @endif
+
+      {{-- 分页 --}}
+      <div class="mt-4 pt-1">
+        {!! $topics->render() !!}
+      </div>
+      ```
+    - 模板中使用「查询作用域」: recent()
+      ```
+      @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
+      ```   
+## 帖子的CRUD
+### 6.1 新建话题（观察器）
+  - 1.新增入口 
+    - resources/views/layouts/_header.blade.php
+      ```
+      <!-- Authentication Links -->
+        @guest
+          <li class="nav-item"><a class="nav-link" href="{{ route('login') }}">登录</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ route('register') }}">注册</a></li>
+        @else
+          <li class="nav-item">
+            <a class="nav-link mt-1 mr-3 font-weight-bold" href="{{ route('topics.create') }}">
+              <i class="fa fa-plus"></i>
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+      ```
+    - resources/views/topics/_sidebar.blade.php
+      ```
+      <div class="card ">
+        <div class="card-body">
+          <a href="{{ route('topics.create') }}" class="btn btn-success btn-block" aria-label="Left Align">
+            <i class="fas fa-pencil-alt mr-2"></i>  新建帖子
+          </a>
+        </div>
+      </div>
+      ```
+  - 2.数据模型 app/Models/Topic.php
+
+    ```
+    protected $fillable = [
+        'title', 'body', 'category_id', 'excerpt', 'slug'
+    ];
+    ```
+    - 以下字段将禁止用户修改：
+      ```
+      user_id —— 文章的作者，我们不希望文章的作者可以被随便指派；
+      last_reply_user_id —— 最后回复的用户 ID，将由程序来维护；
+      order —— 文章排序，将会是管理员专属的功能；
+      reply_count —— 回复数量，程序维护；
+      view_count —— 查看数量，程序维护；
+      ```
+  - 3.控制器 app/Http/Controllers/TopicsController.php
+    ```
+    public function create(Topic $topic)
+    {
+        $categories = Category::all();
+        return view('topics.create_and_edit', compact('topic', 'categories'));
+    }
+    public function store(TopicRequest $request, Topic $topic)
+    {
+        $topic->fill($request->all());
+        $topic->user_id = Auth::id();
+        $topic->save();
+
+        return redirect()->route('topics.show', $topic->id)->with('success', '帖子创建成功！');
+    }
+    ```
+    - store() 方法的第二个参数，会创建一个空白的 $topic 实例；
+    - $request->all() 获取所有用户的请求数据数组，如 ['title' => '标题', 'body' => '内容', ... ]；
+    - $topic->fill($request->all()); **fill** 方法会将传参的键值数组填充到模型的属性中，如以上数组，$topic->title 的值为 `标题`；
+  - 4.视图模板（二合一模板） resources/views/topics/create_and_edit.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('content')
+
+      <div class="container">
+        <div class="col-md-10 offset-md-1">
+          <div class="card ">
+
+            <div class="card-body">
+              <h2 class="">
+                <i class="far fa-edit"></i>
+                @if($topic->id)
+                编辑话题
+                @else
+                新建话题
+                @endif
+              </h2>
+
+              <hr>
+
+              @if($topic->id)
+                <form action="{{ route('topics.update', $topic->id) }}" method="POST" accept-charset="UTF-8">
+                  <input type="hidden" name="_method" value="PUT">
+              @else
+                <form action="{{ route('topics.store') }}" method="POST" accept-charset="UTF-8">
+              @endif
+
+                  <input type="hidden" name="_token" value="{{ csrf_token() }}">
+
+                  @include('shared._error')
+
+                  <div class="form-group">
+                    <input class="form-control" type="text" name="title" value="{{ old('title', $topic->title ) }}" placeholder="请填写标题" required />
+                  </div>
+
+                  <div class="form-group">
+                    <select class="form-control" name="category_id" required>
+                      <option value="" hidden disabled selected>请选择分类</option>
+                      @foreach ($categories as $value)
+                      <option value="{{ $value->id }}">{{ $value->name }}</option>
+                      @endforeach
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <textarea name="body" class="form-control" id="editor" rows="6" placeholder="请填入至少三个字符的内容。" required>{{ old('body', $topic->body ) }}</textarea>
+                  </div>
+
+                  <div class="well well-sm">
+                    <button type="submit" class="btn btn-primary"><i class="far fa-save mr-2" aria-hidden="true"></i> 保存</button>
+                  </div>
+                </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    @endsection
+    ```
+  - 5.模型观察器（监听模型 生成摘要） app/Observers/TopicObserver.php
+    ```
+    public function saving(Topic $topic)
+    {
+        $topic->excerpt = make_excerpt($topic->body);
+    }
+    ```
+    - make_excerpt() 是我们自定义的辅助方法，在 app/helpers.php 中：
+      ```
+      // 根据 $topic->body 内容，去除 html 代码，去除空行及回车键，生成限制字数的摘要
+      function make_excerpt($value, $length = 200)
+      {
+        $excerpt = trim(preg_replace('/\r\n|\r|\n+/', ' ', strip_tags($value)));
+        return Str::limit($excerpt, $length);
+      }
+      ```
+  - 6.表单验证类 app/Http/Requests/TopicRequest.php
+    ```
+    public function rules()
+    {
+        switch($this->method())
+        {
+            // CREATE
+            case 'POST':
+            // UPDATE
+            case 'PUT':
+            case 'PATCH':
+            {
+                return [
+                    'title'       => 'required|min:2',
+                    'body'        => 'required|min:3',
+                    'category_id' => 'required|numeric',
+                ];
+            }
+            case 'GET':
+            case 'DELETE':
+            default:
+            {
+                return [];
+            };
+        }
+    }
+
+    public function messages()
+    {
+        return [
+            'title.min' => '标题必须至少两个字符',
+            'body.min' => '文章内容必须至少三个字符',
+        ];
+    }
+    ```
