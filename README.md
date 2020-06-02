@@ -2238,7 +2238,7 @@
     }
     ```
 ### 6.2 使用 Simditor 编辑器
-  - 1.下载 [Simditor](https://github.com/mycolorway/simditor/releases)
+  - 1.下载 [Simditor](https://simditor.tower.im/)
   - 2.集成到项目中
     - 新建一下两个文件夹
       ```
@@ -2304,3 +2304,83 @@
         </script>
       @stop
       ```
+### 6.3 Simditor 上传图片
+  - 0.图片上传思路
+    - 「Simditor编辑器」发起图片上传请求，「服务器」处理完请求后，返回一个 json 数据 $response 给「Simditor编辑器」
+    - 图片上传的时机是：选择完图片，或者图片粘贴到编辑器后，就离开上传图片，其实是在点击”保存“之前就上传好了图片。
+  - 1.设置路由 routes/web.php
+    ```
+    Route::post('upload_image', 'TopicsController@uploadImage')->name('topics.upload_image');
+    ```
+  - 2.JS脚本调用 resources/views/topics/create_and_edit.blade.php
+    ```
+    @section('scripts')
+      <script type="text/javascript" src="{{ asset('js/module.js') }}"></script>
+      <script type="text/javascript" src="{{ asset('js/hotkeys.js') }}"></script>
+      <script type="text/javascript" src="{{ asset('js/uploader.js') }}"></script>
+      <script type="text/javascript" src="{{ asset('js/simditor.js') }}"></script>
+
+      <script>
+        $(document).ready(function() {
+          var editor = new Simditor({
+            textarea: $('#editor'),
+            upload: {
+              url: '{{ route('topics.upload_image') }}',
+              params: {
+                _token: '{{ csrf_token() }}'
+              },
+              fileKey: 'upload_file',
+              connectionCount: 3,
+              leaveConfirm: '文件上传中，关闭此页面将取消上传。'
+            },
+            pasteImage: true,
+          });
+        });
+      </script>
+    @stop
+    ```
+    - 照 [Simditor编辑器上传图片文档](https://simditor.tower.im/docs/doc-config.html#anchor-upload) 进行设定
+    - `pasteImag`e —— 设定是否支持图片黏贴上传，这里我们使用 true 进行开启；
+    - `url` —— 处理上传图片的 URL；
+    - `params` —— 表单提交的参数，Laravel 的 POST 请求必须带防止 CSRF 跨站请求伪造的 _token 参数；
+    - `fileKey` —— 是服务器端获取图片的键值，我们设置为 upload_file;
+    - `connectionCount` —— 最多只能同时上传 3 张图片；
+    - `leaveConfirm` —— 上传过程中，用户关闭页面时的提醒。
+  - 3.控制器处理图片 app/Http/Controllers/TopicsController.php
+    ```
+    public function uploadImage(Request $request, ImageUploadHandler $uploader)
+    {
+
+        // 初始化返回给 Simditor编辑器 的数据，默认是失败的（以下格式是 Simditor 要求的返回格式）
+        $data = [
+            'success'   => false,
+            'msg'       => '上传失败!',
+            'file_path' => ''
+        ];
+        // 判断是否有上传文件，并赋值给 $file
+        if ($file = $request->upload_file) {
+            // 保存图片到本地
+            $result = $uploader->save($file, 'topics', \Auth::id(), 400);
+            // 图片保存成功的话
+            if ($result) {
+                $data['file_path'] = $result['path'];
+                $data['msg']       = "上传成功!";
+                $data['success']   = true;
+            }
+        }
+        return $data;
+    }
+    ```
+    - 需要返回给 Simditor编辑器 的 JOSN 数据格式如下：
+      ```
+      {
+        "success": true/false,
+        "msg": "error message", # optional
+        "file_path": "[real file path]"
+      }
+      ```
+  - 4.Git 版本控制: public/uploads/images/topics/.gitignore
+    ```
+    *
+    !.gitignore
+    ```
