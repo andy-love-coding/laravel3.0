@@ -2237,3 +2237,70 @@
         ];
     }
     ```
+### 6.2 使用 Simditor 编辑器
+  - 1.下载 [Simditor](https://github.com/mycolorway/simditor/releases)
+  - 2.集成到项目中
+    - 新建一下两个文件夹
+      ```
+      mkdir -p resources/editor/css
+      mkdir -p resources/editor/js
+      ```
+    - `simditor.css` 放置于 `resources/editor/css`
+    - `hotkeys.js`, `module.js`, `simditor.js`, `uploader.js` 四个文件放置于 `resources/editor/js`
+  - 3.修改 webpack.mix.js ，使用 Mix 的 copyDirectory 方法将编辑器的 CSS 和 JS 文件复制到 public 文件夹下
+    ```
+    const mix = require('laravel-mix');
+
+    mix.js('resources/js/app.js', 'public/js')
+      .sass('resources/sass/app.scss', 'public/css')
+      .version()
+      .copyDirectory('resources/editor/js', 'public/js')
+      .copyDirectory('resources/editor/css', 'public/css');
+    ```
+    - 执行 `npm run dev` 会看到成功复制的文件
+  - 4.按需加载编辑器文件
+    - Simditor 的样式和脚本文件只需要在帖子创建页面中使用，出于性能考虑，我们将只在话题创建页码中加载这些文件。
+    - 首先，在布局文件中种下锚点 styles 和 scripts：resources/views/layouts/app.blade.php
+      ```
+      <!-- Styles -->
+        <link href="{{ mix('css/app.css') }}" rel="stylesheet">
+
+        @yield('styles')
+
+      </head>
+
+      <body>
+      .
+      .
+      .
+
+        <!-- Scripts -->
+        <script src="{{ mix('js/app.js') }}"></script>
+
+        @yield('scripts')
+
+      </body>
+      </html>
+      ```
+    - 然后，按需加载 resources/views/topics/create_and_edit.blade.php
+      ```
+      ...
+      @section('styles')
+        <link rel="stylesheet" type="text/css" href="{{ asset('css/simditor.css') }}">
+      @stop
+
+      @section('scripts')
+        <script type="text/javascript" src="{{ asset('js/module.js') }}"></script>
+        <script type="text/javascript" src="{{ asset('js/hotkeys.js') }}"></script>
+        <script type="text/javascript" src="{{ asset('js/uploader.js') }}"></script>
+        <script type="text/javascript" src="{{ asset('js/simditor.js') }}"></script>
+
+        <script>
+          $(document).ready(function() {
+            var editor = new Simditor({
+              textarea: $('#editor'),
+            });
+          });
+        </script>
+      @stop
+      ```
