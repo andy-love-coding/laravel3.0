@@ -500,7 +500,7 @@
           ]);
       }
       ```
-### 3.5 邮箱认证
+### 3.5 邮箱认证（监听器）
   - 1.修改模型位置 app/Models
     ```
     mkdir app/Models
@@ -548,7 +548,7 @@
         - getEmailForVerification() 获取发送邮件地址，提供这个接口允许你自定义邮箱字段。
     - 实现契约 `class User extends Authenticatable implements MustVerifyEmailContract`
       - 可以打开 vendor/laravel/framework/src/Illuminate/Contracts/Auth/MustVerifyEmail.php ，可以看到此文件为 PHP 的接口类，继承此类将确保 User 遵守契约，拥有上面提到的四个方法。
-  - 3.发送认证邮件(源码阅读)
+  - 3.发送认证邮件(源码 监听器$listener)
       - 认证是通过 `app/Http/Controllers/Auth/RegisterController` 实现的，其使用了 `Illuminate\Foundation\Auth\RegistersUsers` trait，查看此 trait 中的 `register()` 方法
         ```
         public function register(Request $request)
@@ -568,7 +568,7 @@
         }
         ```
         - 此方法处理了用户提交表单后的逻辑，我们把重点放在 event(new Registered($user = $this->create($request->all())));，这里使用了 Laravel 的事件系统，触发了 Registered 事件。
-        - 打开 `app/Providers/EventServiceProvider.php`文件，此文件的 $listen 属性里我们可以看到注册了 Registered 事件的监听器：
+        - **监听器注册**：打开 `app/Providers/EventServiceProvider.php`文件，此文件的 $listen 属性里我们可以看到注册了 Registered 事件的监听器：
           ```
           protected $listen = [
               Registered::class => [
@@ -576,6 +576,8 @@
               ],
           ];
           ```
+          - Registered::class 是事件
+          - SendEmailVerificationNotification::class 是监听器。单个事件，可以对应多个监听器。
           - 打开 `SendEmailVerificationNotification` 类，阅读其源码：vendor/laravel/framework/src/Illuminate/Auth/Listeners/SendEmailVerificationNotification.php
             ```
             <?php
@@ -2186,7 +2188,7 @@
 
     @endsection
     ```
-  - 5.模型观察器（监听模型 生成摘要） app/Observers/TopicObserver.php
+  - 5.模型观察器（观察模型 生成摘要） app/Observers/TopicObserver.php
     ```
     public function saving(Topic $topic)
     {
@@ -2200,6 +2202,14 @@
       {
         $excerpt = trim(preg_replace('/\r\n|\r|\n+/', ' ', strip_tags($value)));
         return Str::limit($excerpt, $length);
+      }
+      ```
+    - **观察器注册**： app/Providers/AppServiceProvider.php
+      ```
+      public function boot()
+      {
+        \App\Models\User::observe(\App\Observers\UserObserver::class);
+        \App\Models\Topic::observe(\App\Observers\TopicObserver::class);
       }
       ```
   - 6.表单验证类 app/Http/Requests/TopicRequest.php
@@ -2621,3 +2631,195 @@
     </div>
     @endcan
     ```
+### 6.8 SEO 友好的 URL
+  - 1.什么是 SEO 友好的 URL
+    - 假如话题标题为『Slug 翻译测试』的 URL 是：
+      ```
+      http://larabbs.test/topics/119
+      ```
+    - 加入 Slug 后 SEO 友好的链接为：
+      ```
+      http://larabbs.test/topics/119/slug-translation-test
+      ```
+  - 2.翻译器工具类 app/Handlers/SlugTranslateHandler.php
+    ```
+    <?php
+
+    namespace App\Handlers;
+
+    use GuzzleHttp\Client;
+    use Overtrue\Pinyin\Pinyin;
+
+    class SlugTranslateHandler
+    {
+        public function translate($text)
+        {
+            // 实例化 HTTP 客户端
+            $http = new Client;
+
+            // 初始化配置信息
+            $api = 'http://api.fanyi.baidu.com/api/trans/vip/translate?';
+            $appid = config('services.baidu_translate.appid');
+            $key = config('services.baidu_translate.key');
+            $salt = time();
+
+            // 如果没有配置百度翻译，自动使用兼容的拼音方案
+            if (empty($appid) || empty($key)) {
+                return $this->pinyin($text);
+            }
+
+            // 根据文档，生成 sign
+            // http://api.fanyi.baidu.com/api/trans/product/apidoc
+            // appid+q+salt+密钥 的MD5值
+            $sign = md5($appid. $text . $salt . $key);
+
+            // 构建请求参数
+            $query = http_build_query([
+                "q"     =>  $text,
+                "from"  => "zh",
+                "to"    => "en",
+                "appid" => $appid,
+                "salt"  => $salt,
+                "sign"  => $sign,
+            ]);
+
+            // 发送 HTTP Get 请求
+            $response = $http->get($api.$query);
+
+            $result = json_decode($response->getBody(), true);
+
+            /**
+            获取结果，如果请求成功，dd($result) 结果如下：
+
+            array:3 [▼
+                "from" => "zh"
+                "to" => "en"
+                "trans_result" => array:1 [▼
+                    0 => array:2 [▼
+                        "src" => "XSS 安全漏洞"
+                        "dst" => "XSS security vulnerability"
+                    ]
+                ]
+            ]
+
+            **/
+
+            // 尝试获取获取翻译结果
+            if (isset($result['trans_result'][0]['dst'])) {
+                return \Str::slug($result['trans_result'][0]['dst']);
+            } else {
+                // 如果百度翻译没有结果，使用拼音作为后备计划。
+                return $this->pinyin($text);
+            }
+        }
+
+        public function pinyin($text)
+        {
+            return \Str::slug(app(Pinyin::class)->permalink($text));
+        }
+    }
+    ```
+    - 安装依赖 [Guzzle](https://github.com/guzzle/guzzle) ，Guzzle 库是一套强大的 PHP HTTP 请求套件
+      ```
+      composer require "guzzlehttp/guzzle:~6.3"
+      ```
+      无需配置，安装完成后即可使用
+    - 安装依赖 [PinYin](https://github.com/overtrue/pinyin)
+      ```
+      composer require "overtrue/pinyin:~4.0"
+      ```
+      无需配置，安装完成后即可使用
+  - 3.[百度翻译 API 配置信息](http://api.fanyi.baidu.com/api/trans/product/index)
+    - `config/services.php` 中：
+      ```
+      return [
+          ...
+          'baidu_translate' => [
+              'appid' => env('BAIDU_TRANSLATE_APPID'),
+              'key'   => env('BAIDU_TRANSLATE_KEY'),
+          ],
+
+      ];
+      ```
+    - `.env` 中：
+      ```
+      BAIDU_TRANSLATE_APPID=201703xxxxxxxxxxxxx
+      BAIDU_TRANSLATE_KEY=q0s6axxxxxxxxxxxxxxxxx
+      ```
+    - `.env.example` 中：
+      ```
+      BAIDU_TRANSLATE_APPID=
+      BAIDU_TRANSLATE_KEY=
+      ```
+      - 每当我们在 .env 中新增键值时，都必须在 .env.example 文件中新增相应的键.因为 .env 文件被我们排除 Git 跟踪（可以查看 .gitignore 文件），文件 .env.example 是作为项目环境变量的初始化文件而存在。当项目在新环境中安装时，只需要执行 cp .env.example .env 命令，并在 .env 填入对应的值，即可完成对项目环境变量的配置。
+  - 4.模型观察器中调用翻译 app/Observers/TopicObserver.php
+    ```
+    // 数据写入数据库之前
+    public function saving(Topic $topic)
+    {
+        // XSS过滤：使用「HTMLPurifier扩展」的 clean() 方法过滤用户提交内容，第二个参数是 config/purifier 中的配置项
+        $topic->body = clean($topic->body, 'user_topic_body');
+
+        // 生成话题摘录
+        $topic->excerpt = make_excerpt($topic->body);
+
+        // 如 slug 字段无内容，即使用翻译器对 title 进行翻译
+        if ( ! $topic->slug) {
+            $topic->slug = app(SlugTranslateHandler::class)->translate($topic->title);
+        }
+    }
+    ```
+  - 5.修改路由 [$model->link()](https://learnku.com/docs/laravel-specification/5.5/router/502#038eff) 
+    - 修改 routes/web.php，`topics.show`路由中增加「可选路由参数」`slug`
+      ```
+      Route::resource('topics', 'TopicsController', ['only' => ['index', 'create', 'store', 'update', 'edit', 'destroy']]);
+      Route::get('topics/{topic}/{slug?}', 'TopicsController@show')->name('topics.show');
+      ```
+    - 新建 **$model->link()** 方法，app/Models/Topic.php
+      ```
+      public function link($params = [])
+      {
+          return route('topics.show', array_merge([$this->id, $this->slug], $params));
+      }
+      ```
+      - 获取 URL **必须** 遵循以下优先级：
+        - 1.$model->link()
+        - 2.route 方法
+        - 3.url 方法
+      - 『单个模型 URI』经常会发生变化，这样做将会让程序更加灵活。
+    - 全局修改路由的调用
+      - 全局搜索关键字 `topics.show`, 然后手动一个个修改，主要由两种链接，一种是控制器里的跳转，例如：
+        ```
+        return redirect()->route('topics.show', $topic->id)->with('success', '成功创建话题！');
+        ```
+        修改为
+        ```
+        return redirect()->to($topic->link())->with('success', '成功创建话题！');
+        ```
+      - 另一种是模板里的，例如：
+        ```
+        <a href="{{ route('topics.show', [$topic->id]) }}" title="{{ $topic->title }}">
+            {{ $topic->title }}
+        </a>
+        ```
+        修改为
+        ```
+        <a href="{{ $topic->link() }}" title="{{ $topic->title }}">
+            {{ $topic->title }}
+        </a>
+        ```
+  - 6.强制跳转(永久重定向 301) 
+    - 为啥强制跳转 (永久重定向 301) 
+      - 当话题有 Slug 的时候，我们希望用户一直使用正确的、带着 Slug 的链接来访问。我们可以在控制器中对 Slug 进行判断，当条件允许的时候，我们将发送 301 永久重定向指令给浏览器，跳转到带 Slug 的链接
+    - 在 app/Http/Controllers/TopicsController.php 中：
+      ```
+      public function show(Request $request, Topic $topic)
+      {
+          // 如果话题的 Slug 字段不为空；并且话题 Slug 不等于请求的路由参数 Slug
+          if ( ! empty($topic->slug) && $topic->slug != $request->slug) {
+              return redirect($topic->link(), 301);
+          }
+
+          return view('topics.show', compact('topic'));
+      }
+      ```
