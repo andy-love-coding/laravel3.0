@@ -2571,3 +2571,53 @@
         return $topic->user_id == $user->id;
     }
     ```
+### 6.7 删除帖子
+  - 1.授权策略 (只能自己删除自己)  app/Policies/TopicPolicy.php
+
+    ```
+    public function update(User $user, Topic $topic)
+    {
+        // return $topic->user_id == $user->id;
+        return $user->isAuthorOf($topic);
+    }
+
+    public function destroy(User $user, Topic $topic)
+    {
+        return $user->isAuthorOf($topic);
+    }
+    ```
+    - 需要在 app/Models/User.php 中定义一个方法 isAuthorOf()，这个可以减少重复代码
+      ```
+      public function isAuthorOf($model)
+      {
+          return $this->id == $model->user_id;
+      }
+      ```
+  - 2.控制器 app/Http/Controllers/TopicsController.php
+    ```
+    public function destroy(Topic $topic)
+    {
+      $this->authorize('destroy', $topic);
+      $topic->delete();
+
+      return redirect()->route('topics.index')->with('success', '删除成功！');
+    }
+    ``` 
+  - 3.视图(构建删除表单) resources/views/topics/show.blade.php
+    ```
+    @can('update', $topic)
+    <div class="operate">
+      <hr>
+      <a href="{{ route('topics.edit', $topic->id) }}" class="btn btn-outline-secondary btn-sm" role="button">
+        <i class="far fa-edit"></i> 编辑
+      </a>
+      <form action="{{ route('topics.destroy', $topic->id) }}" method="post" style="display: inline-block;" onsubmit="return confirm('确定要删除吗？');">
+        @csrf
+        {{ method_field('DELETE') }}
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+          <i class="far fa-trash-alt"></i> 删除
+        </button>
+      </form>
+    </div>
+    @endcan
+    ```
