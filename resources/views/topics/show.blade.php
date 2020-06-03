@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', $topic->title)
-@seciont('description', $topic->excerpt)
+@section('description', $topic->excerpt)
 
 @section('content')
   <div class="row">

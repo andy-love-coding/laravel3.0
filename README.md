@@ -2535,4 +2535,39 @@
         }
     }
     ```
+### 6.6 编辑帖子
+  - 1.控制器(传递 categories 变量) app/Http/Controllers/TopicsController.php
+    ```
+    public function edit(Topic $topic)
+    {
+        $this->authorize('update', $topic);
+        $categories = Category::all();
+        return view('topics.create_and_edit', compact('topic', 'categories'));
+    }
 
+    public function update(TopicRequest $request, Topic $topic)
+    {
+        $this->authorize('update', $topic);
+        $topic->update($request->all());
+
+        return redirect()->route('topics.show', $topic->id)->with('success', '更新成功！');
+    }
+    ```
+  - 2.视图 (选中正在编辑的分类) resources/views/topics/create_and_edit.blade.php
+    ```
+    <div class="form-group">
+      <select name="category_id" class="form-control" required>
+        <option value="" hidden disabled {{ $topic->id ? '' : 'selected' }}>请选择分类</option>
+        @foreach ($categories as $category)
+          <option value="{{ $category->id }}" {{ $topic->category_id == $category->id ? 'selected' : ''  }}>{{ $category->name }}</option>
+        @endforeach
+      </select>
+    </div>
+    ```
+  - 3.授权策略(只有自己能编辑自己) app/Policies/TopicPolicy.php
+    ```
+    public function update(User $user, Topic $topic)
+    {
+        return $topic->user_id == $user->id;
+    }
+    ```
