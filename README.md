@@ -2963,7 +2963,7 @@
     QUEUE_CONNECTION=sync
     ```
 ## 7 帖子回复
-## 7.1 生成回复数据
+### 7.1 生成回复数据
   - 1.代码生成 (用代码生成器)
     ```
     php artisan make:scaffold Reply --schema="topic_id:integer:unsigned:default(0):index,user_id:bigInteger:unsigned:default(0):index,content:text"
@@ -3072,3 +3072,152 @@
       ```
       php artisan migrate:refresh --seed
       ```
+### .7.2 回复列表
+  - 0.清理门户
+    ```
+    rm -rf resources/views/replies/
+    ```
+  - 1.话题下的回复列表
+    - resources/views/topics/show.blade.php
+      ```
+      {{-- 用户回复列表 --}}
+      <div class="card topic-reply mt-4">
+          <div class="card-body">
+              @include('topics._reply_box', ['topic' => $topic])
+              @include('topics._reply_list', ['replies' => $topic->replies()->with('user')->get()])
+          </div>
+      </div>
+      ```
+      - 注意 wiht() 预加载，因为在话题下的回复列表中，要显示回复的「用户名」
+        ```
+        @include('topics._reply_list', ['replies' => $topic->replies()->with('user')->get()])
+        ``` 
+    - 生成子视图
+      ```
+      touch resources/views/topics/_reply_box.blade.php
+      touch resources/views/topics/_reply_list.blade.php
+      ```
+    - 编写 resources/views/topics/_reply_list.blade.php
+      ```
+      <ul class="list-unstyled">
+        @foreach ($replies as $index => $reply)
+          <li class=" media" name="reply{{ $reply->id }}" id="reply{{ $reply->id }}">
+            <div class="media-left">
+              <a href="{{ route('users.show', [$reply->user_id]) }}">
+                <img class="media-object img-thumbnail mr-3" alt="{{ $reply->user->name }}" src="{{ $reply->user->avatar }}" style="width:48px;height:48px;" />
+              </a>
+            </div>
+
+            <div class="media-body">
+              <div class="media-heading mt-0 mb-1 text-secondary">
+                <a href="{{ route('users.show', [$reply->user_id]) }}" title="{{ $reply->user->name }}">
+                  {{ $reply->user->name }}
+                </a>
+                <span class="text-secondary"> • </span>
+                <span class="meta text-secondary" title="{{ $reply->created_at }}">{{ $reply->created_at->diffForHumans() }}</span>
+
+                {{-- 回复删除按钮 --}}
+                <span class="meta float-right ">
+                  <a title="删除回复">
+                    <i class="far fa-trash-alt"></i>
+                  </a>
+                </span>
+              </div>
+              <div class="reply-content text-secondary">
+                {!! $reply->content !!}
+              </div>
+            </div>
+          </li>
+
+          @if ( ! $loop->last)
+            <hr>
+          @endif
+
+        @endforeach
+      </ul>
+      ```
+      - 注意：此处回复内容显示时使用 {!! !!} Blade 表达式，意味着非转义打印数据，这是一个安全隐患，我们将在『发布回复』功能的开发中处理此问题。
+    - 样式 resources/sass/app.scss
+      ```
+      /* 回复列表 */
+      .topic-reply {
+          a {
+              color: inherit;
+          }
+          .meta {
+              font-size: .9em;
+              color: #b3b3b3;
+          }
+      }
+      ```
+  - 2.个人页面下的回复列表
+    - resources/views/users/show.blade.php
+      ```
+      {{-- 用户发布的内容 --}}
+      <div class="card">
+        <div class="card-body">
+          <ul class="nav nav-tabs">
+            <li class="nav-item">
+              <a href="{{ route('users.show', $user->id) }}" class="nav-link bg-transparent {{ active_class(if_query('tab', null)) }}">
+                Ta 的话题
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('users.show', [$user->id, 'tab' => 'replies']) }}" class="nav-link bg-transparent {{ active_class(if_query('tab', 'replies')) }}">
+                Ta 的回复
+              </a>
+            </li>
+          </ul>
+          @if (if_query('tab', 'replies'))
+            @include('users._replies', ['replies' => $user->replies()->with('topic')->recent()->paginate(5)])
+          @else
+            @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
+          @endif
+        </div>
+      </div>
+      ```
+      - recent() 方法在数据模型基类 app/Models/Model.php 中定义，并且使用了 本地作用域 的方式进行定义
+      - with('topic') 预加载，因为在个人页面的回复列表中，要显示回复的是哪一个 帖子$topic，所以预加载 $topic
+        ```
+        @include('users._replies', ['replies' => $user->replies()->with('topic')->recent()->paginate(5)])
+        ```
+    - 子视图 resources/views/users/_replies.blade.php
+      ```
+      @if (count($replies))
+        <ul class="list-group mt-4 border-0">
+          @foreach ($replies as $reply)
+            <li class="list-group-item pl-2 pr-2 border-right-0 border-left-0 @if($loop->first) border-top-0 @endif">
+              <a href="{{ $reply->topic->link(['#reply' . $reply->id]) }}">
+                {{ $reply->topic->title }}
+              </a>
+
+              <div class="reply-content text-secondary mt-2 mb-2">
+                {!! $reply->content !!}
+              </div>
+
+              <div class="text-secondary" style="font-size:0.9em;">
+                <i class="far fa-clock"></i> 回复于 {{ $reply->created_at->diffForHumans() }}
+              </div>
+            </li>
+          @endforeach
+        </ul>
+
+      @else
+        <div class="empty-block">暂无数据 ~_~ </div>
+      @endif
+
+      {{-- 分页 --}}
+      <div class="mt-4 pt-1">
+        {!! $replies->appends(Request::except('page'))->render() !!}
+      </div>
+      ```
+      - 注意：$topic->link()
+        ```
+        <a href="{{ $reply->topic->link(['#reply' . $reply->id]) }}">
+        ```
+      - 注意：appends() 方法可以使 URI 中的请求参数得到继承。
+        ```
+        {!! $replies->appends(Request::except('page'))->render() !!}
+        ```
+
+
