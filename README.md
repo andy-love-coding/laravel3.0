@@ -2962,4 +2962,113 @@
     ```
     QUEUE_CONNECTION=sync
     ```
-  
+## 7 帖子回复
+## 7.1 生成回复数据
+  - 1.代码生成 (用代码生成器)
+    ```
+    php artisan make:scaffold Reply --schema="topic_id:integer:unsigned:default(0):index,user_id:bigInteger:unsigned:default(0):index,content:text"
+    ```
+    对应的迁移文件如下：
+    ```
+    public function up()
+    {
+      Schema::create('replies', function(Blueprint $table) {
+              $table->increments('id');
+              $table->integer('topic_id')->unsigned()->default(0)->index();
+              $table->bigInteger('user_id')->unsigned()->default(0)->index();
+              $table->text('content');
+              $table->timestamps();
+          });
+    }
+    ```
+  - 2.数据模型
+    - 修改 app/Models/Reply.php
+      ```
+      class Reply extends Model
+      {
+          protected $fillable = ['content'];
+
+          public function topic()
+          {
+              return $this->belongsTo(Topic::class);
+          }
+
+          public function user()
+          {
+              return $this->belongsTo(User::class);
+          }
+      }
+      ```
+    - 修改 app/Models/Topic.php
+      ```
+      public function replies()
+      {
+          return $this->hasMany(Reply::class);
+      }
+      ```
+    - 修改 app/Models/User.php
+      ```
+      public function replies()
+      {
+          return $this->hasMany(Reply::class);
+      }
+      ```
+  - 3.填充假数据
+    - 1.定制模型工厂 database/factories/ReplyFactory.php
+      ```
+      use Faker\Generator as Faker;
+
+      $factory->define(App\Models\Reply::class, function (Faker $faker) {
+          // 随机取一个月以内的时间
+          $time = $faker->dateTimeThisMonth();
+
+          return [
+              'content' => $faker->sentence(),
+              'created_at' => $time,
+              'updated_at' => $time,
+          ];
+      });
+      ```
+    - 2.填充文件 database/seeds/RepliesTableSeeder.php
+      ```
+      public function run()
+      {
+          // 所有用户 ID 数组，如：[1,2,3,4]
+          $user_ids = User::all()->pluck('id')->toArray();
+
+          // 所有话题 ID 数组，如：[1,2,3,4]
+          $topic_ids = Topic::all()->pluck('id')->toArray();
+
+          // 获取 Faker 实例
+          $faker = app(Faker\Generator::class);
+
+          $replies = factory(Reply::class)
+                          ->times(1000)
+                          ->make()
+                          ->each(function ($reply, $index)
+                              use ($user_ids, $topic_ids, $faker)
+          {
+              // 从用户 ID 数组中随机取出一个并赋值
+              $reply->user_id = $faker->randomElement($user_ids);
+
+              // 话题 ID，同上
+              $reply->topic_id = $faker->randomElement($topic_ids);
+          });
+
+          // 将数据集合转换为数组，并插入到数据库中
+          Reply::insert($replies->toArray());
+      }
+      ```
+    - 3.注册填充文类 database/seeds/DatabaseSeeder.php
+      ```
+      public function run()
+      {
+          $this->call(UsersTableSeeder::class);
+          $this->call(TopicsTableSeeder::class);
+          $this->call(RepliesTableSeeder::class);
+      }
+      ```
+    - 4.执行填充假数据
+      ```
+      php artisan migrate:refresh --seed
+      ```
