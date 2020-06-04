@@ -3072,7 +3072,7 @@
       ```
       php artisan migrate:refresh --seed
       ```
-### .7.2 回复列表
+### 7.2 回复列表
   - 0.清理门户
     ```
     rm -rf resources/views/replies/
@@ -3083,11 +3083,17 @@
       {{-- 用户回复列表 --}}
       <div class="card topic-reply mt-4">
           <div class="card-body">
-              @include('topics._reply_box', ['topic' => $topic])
+              @includeWhen(Auth::check(), 'topics._reply_box', ['topic' => $topic])
               @include('topics._reply_list', ['replies' => $topic->replies()->with('user')->get()])
           </div>
       </div>
       ```
+      - 注意：@includeWhen($boolean, 'view.name', ['some' => 'data']) 『视条件加载子模板』
+
+        ```
+        @includeWhen(Auth::check(), 'topics._reply_box', ['topic' => $topic])
+        ```
+        话题回复功能我们只允许登录用户使用
       - 注意 wiht() 预加载，因为在话题下的回复列表中，要显示回复的「用户名」
         ```
         @include('topics._reply_list', ['replies' => $topic->replies()->with('user')->get()])
@@ -3219,5 +3225,91 @@
         ```
         {!! $replies->appends(Request::except('page'))->render() !!}
         ```
+### 7.3 发表回复
+  - 0.『视条件加载子模板』 resources/views/topics/show.blade.php
+    ```
+    {{-- 用户回复列表 --}}
+    <div class="card topic-reply mt-4">
+        <div class="card-body">
+            @includeWhen(Auth::check(), 'topics._reply_box', ['topic' => $topic])
+            @include('topics._reply_list', ['replies' => $topic->replies()->with('user')->get()])
+        </div>
+    </div>
+    ```
+  - 1.子模板 resources/views/topics/_reply_box.blade.php
+    ```
+    @include('shared._errors')
 
+    <div class="reply-box">
+      <form action="{{ route('replies.store') }}" method="POST" accept-charset="UTF-8">
+        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="topic_id" value="{{ $topic->id }}">
+        <div class="form-group">
+          <textarea class="form-control" rows="3" placeholder="分享你的见解~" name="content"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-share mr-1"></i> 回复</button>
+      </form>
+    </div>
+    <hr>
+    ```
+  - 2.整理路由 routes/web.php
+    ```
+    Route::resource('replies', 'RepliesController', ['only' => ['store', 'destroy']]); // 只保留2个方法
+    ```
+  - 3.控制器 app/Http/Controllers/RepliesController.php
+    ```
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+		public function store(ReplyRequest $request, Reply $reply)
+		{
+				$reply->content = $request->content;
+				$reply->user_id = Auth::id();
+				$reply->topic_id = $request->topic_id;
+				$reply->save();
+
+				return redirect()->to($reply->topic->link())->with('success', '评论创建成功！');
+		}
+
+		public function destroy(Reply $reply)
+		{
+				$this->authorize('destroy', $reply);
+				$reply->delete();
+
+				return redirect()->to($reply->topic->link())->with('success', '评论删除成功！');
+		}
+    ```
+  - 4.表单验证 app/Http/Requests/ReplyRequest.php
+    ```
+    public function rules()
+    {
+        return [
+            'content' => 'required|min:2',
+        ];
+    }
+    ```
+  - 5.话题回复数 app/Observers/ReplyObserver.php
+    ```
+    public function created(Reply $reply)
+    {
+        // 方法一：自增。不建议用此法
+        // $reply->topic->increment('reply_count', 1);
+
+        // 方法二：先计算总数，再赋值、保存。推荐此法
+        $reply->topic->reply_count = $reply->topic->replies()->count();
+        $reply->topic->save();
+    }
+    ```
+  - 6.处理 XSS 问题（HTMLPurifier）
+    - 在显示回复内容时，使用了 Blade 模板的 {!! !!} 『非转义打印』语法，这会是一个 XSS 安全威胁。
+    - 处理 XSS 问题，在 app/Observers/ReplyObserver.php 中：
+      ```
+      public function creating(Reply $reply)
+      {
+          // 使用「HTMLPurifier扩展」的 clean() 方法过滤用户提交内容，第二个参数是 config/purifier 中的配置项
+          $reply->content = clean($reply->content, 'user_topic_body');
+      }
+      ```
 
