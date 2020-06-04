@@ -2963,7 +2963,7 @@
     QUEUE_CONNECTION=sync
     ```
 ## 7 帖子回复
-### 7.1 生成回复数据
+### 7.1 生成回复假数据
   - 1.代码生成 (用代码生成器)
     ```
     php artisan make:scaffold Reply --schema="topic_id:integer:unsigned:default(0):index,user_id:bigInteger:unsigned:default(0):index,content:text"
@@ -3312,4 +3312,133 @@
           $reply->content = clean($reply->content, 'user_topic_body');
       }
       ```
+### 7.4 消息通知(Database通知)
+  - 1.准备数据库
+    生成迁移文件
+    ```    
+    php artisan notifications:table
+    ```
+    执行迁移，生成 notification 表
+    ```
+    php artisan migrate 
+    ```
+  - 2.在 users 表中新增 `notification_count` 字段，表示用户有多少「未读通知」
+    ```
+    php artisan make:migration add_notification_count_to_users_table --table=users
+    ```
+    ```
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->integer('notification_count')->unsigned()->default(0);
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('notification_count');
+        });
+    }
+    ```
+    再次执行迁移
+    ```
+    php artisan migrate
+    ```
+  - 3.生成通知类
+    ```
+    php artisan make:notification TopicReplied
+    ```
+  - 4.编写通知类（通知频道） app/Notifications/TopicReplied.php
+    ```
+    class TopicReplied extends Notification
+    {
+        use Queueable;
+
+        public $reply;
+
+        public function __construct(Reply $reply)
+        {
+            // 注入回复实体，方便 toDatabase 方法中的使用
+            $this->reply = $reply;
+        }
+
+        public function via($notifiable)
+        {
+            // 开启通知的频道
+            return ['database'];
+        }
+
+        public function toDatabase($notifiable)
+        {
+            $topic = $this->reply->topic;
+            $link =  $topic->link(['#reply' . $this->reply->id]);
+
+            // 存入数据库里的数据
+            return [
+                'reply_id' => $this->reply->id,
+                'reply_content' => $this->reply->content,
+                'user_id' => $this->reply->user->id,
+                'user_name' => $this->reply->user->name,
+                'user_avatar' => $this->reply->user->avatar,
+                'topic_link' => $link,
+                'topic_id' => $topic->id,
+                'topic_title' => $topic->title,
+            ];
+        }
+    }
+    ```
+    - **通知频道**
+      - Laravel 自带的有数据库、邮件、短信（通过 Nexmo）以及 Slack。
+      - 每个通知类都有个 via() 方法，它决定了通知在哪个频道上发送
+  - 5.触发通知 app/Observers/ReplyObserver.php
+    ```
+    use App\Notifications\TopicReplied;
+    class ReplyObserver
+    {
+        public function created(Reply $reply)
+        {
+            $reply->topic->reply_count = $reply->topic->replies->count();
+            $reply->topic->save();
+
+            // 通知话题作者有新的评论
+            $reply->topic->user->notify(new TopicReplied($reply));
+        }
+        ...
+    }
+    ```
+    - 默认的 `User` 模型中使用了 trait —— Notifiable，它包含着一个可以用来发通知的方法 `notify()` ，此方法接收一个通知实例做参数。
+  - 6.重写 notify() 方法，
+    - 虽然 notify() 已经很方便，但是我们还需要对其进行定制
+    - 我们希望每一次在调用 $user->notify() 时，顺便做点别的事情，如：自动将 users 表里的 notification_count +1 ，这样我们就能跟踪用户未读通知了。
+    - 在 app/Models/User.php中：
+      ```
+      use Auth;
+
+      class User extends Authenticatable implements MustVerifyEmailContract
+      {
+          use MustVerifyEmailTrait;
+
+          use Notifiable {
+              notify as protected laravelNotify;
+          }
+          public function notify($instance)
+          {
+              // 如果要通知的人是当前用户，就不必通知了！
+              if ($this->id == Auth::id()) {
+                  return;
+              }
+
+              // 只有数据库类型通知才需提醒，其他频道如 Email、短信、Slack 都略过
+              if (method_exists($instance, 'toDatabase')) {
+                  $this->increment('notification_count');
+              }
+
+              $this->laravelNotify($instance);
+          }
+          ...
+      }
+      ```
+
+
 
