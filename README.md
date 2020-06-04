@@ -2823,3 +2823,143 @@
           return view('topics.show', compact('topic'));
       }
       ```
+### 6.9 翻译使用队列（job）
+  - 1.配置队列
+      - 队列驱动
+        - 这些驱动包括：数据库，Beanstalkd，Amazon SQS，Redis，sync(同步模式，也就是说不使用任何队列)
+      - 安装 Redis 客户端依赖（将使用 redis 来作为队列驱动）
+        ```
+        composer require "predis/predis:~1.1"
+        ```
+      - `.env` 中：
+        ```
+        QUEUE_CONNECTION=redis
+        REDIS_CLIENT=predis
+        ```
+      - 失败任务
+        - 任务超出这个重试次数后，它就会被插入到 failed_jobs 数据表里面
+  - 2.生成任务类(job)
+
+    ```
+    php artisan make:job TranslateSlug
+    ```
+    app/Jobs/TranslateSlug.php
+    ```
+    <?php
+
+    namespace App\Jobs;
+
+    use Illuminate\Bus\Queueable;
+    use Illuminate\Contracts\Queue\ShouldQueue;
+    use Illuminate\Foundation\Bus\Dispatchable;
+    use Illuminate\Queue\InteractsWithQueue;
+    use Illuminate\Queue\SerializesModels;
+
+    use App\Models\Topic;
+    use App\Handlers\SlugTranslateHandler;
+
+    class TranslateSlug implements ShouldQueue
+    {
+        use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+        protected $topic;
+
+        // 构造函数用来接收 类初始化时的参数，这个参数可有可无，视业务需要而定
+        public function __construct(Topic $topic)
+        {        
+            // 如果这个参数是 Eloquent 模型，SerializesModels 将会只序列化模型的 ID，执行job的时候，再根据 ID 从数据库检查出模型实例
+            $this->topic = $topic;
+        }
+
+        // handle 方法会在队列任务执行时被调用，调用方法如：dispatch(new TranslateSlug($topic));
+        public function handle()
+        {
+            // 请求百度 API 接口进行翻译
+            $slug = app(SlugTranslateHandler::class)->translate($this->topic->title);
+
+            // 如果将来是在模型观察器中「分发job任务」
+            // 为了避免模型监控器「死循环调用」，任务里不能再有模型的操作，我们使用 DB 类直接对数据库进行操作
+            // 否则会陷入调用死循环 —— 模型监控器分发任务，任务触发模型监控器，模型监控器再次分发任务，任务再次触发模型监控器…. 死循环
+            \DB::table('topics')->where('id', $this->topic->id)->update(['slug' => $slug]);       
+        }
+    }
+    ```
+    - 注意：job任务类，尽量用 DB 类来操作操作，避免「模型观察器死循环」。
+  - 3.任务分发，在 app/Observers/TopicObserver.php 中分发：
+    ```
+    public function saving(Topic $topic)
+    {
+        // XSS 过滤
+        $topic->body = clean($topic->body, 'user_topic_body');
+
+        // 生成话题摘录
+        $topic->excerpt = make_excerpt($topic->body);
+
+        // 如 slug 字段无内容，即使用翻译器对 title 进行翻译
+        if ( ! $topic->slug) {
+
+            // 推送任务到队列
+            dispatch(new TranslateSlug($topic));
+        }
+    }
+    ```
+    **问题：**以上代码有问题，因为分发任务 `dispatch(new TranslateSlug($topic));` 需要传一个 $topic 实例参数，而saving()的时候，$topic->id 还没生成呢，因此正确的做事是在 saved() 中分发任务，此时 $topic->id 已经生成。正确代码如下：
+    ```
+    // 数据写入数据库之前
+    public function saving(Topic $topic)
+    {
+        // XSS过滤：使用「HTMLPurifier扩展」的 clean() 方法过滤用户提交内容，第二个参数是 config/purifier 中的配置项
+        $topic->body = clean($topic->body, 'user_topic_body');
+
+        // 生成话题摘录
+        $topic->excerpt = make_excerpt($topic->body);
+        
+    }
+
+    public function saved(Topic $topic)
+    {
+        // 如 slug 字段无内容，即使用翻译器对 title 进行翻译
+        if ( ! $topic->slug) {
+            // $topic->slug = app(SlugTranslateHandler::class)->translate($topic->title);
+
+            // 模型观察器 分发任务 到队列。
+            // 模型观察器分发任务，任务handle()中不能再有模型操作，否则又会触发模型观察器分发任务，从而进入死循环
+            dispatch(new TranslateSlug($topic));
+        }
+    }
+    ```
+  - 4.队列监控 (命令行方式)
+    - 在命令行启动队列系统，队列在启动完成后会进入监听状态：
+    ```
+    php artisan queue:listen
+    ```
+  - 5.队列监控（[Horizon](https://learnku.com/docs/laravel/6.x/horizon/5190)）
+    - Horizon 简介
+      - 是 Laravel 生态圈里的一员，为 Laravel Redis 队列提供了一个漂亮的仪表板，允许我们很方便地查看和管理 Redis 队列任务执行的情况。
+    - 安装 Horizon
+      ```
+      composer require "laravel/horizon:~3.1"
+      ```
+    - 发布资源
+      ```
+      php artisan vendor:publish --provider="Laravel\Horizon\HorizonServiceProvider"
+      ```
+    - 打开仪表盘：larabbs.test/horizon 
+    - 启动：Horizon 是一个监控程序，需要常驻运行，我们可以通过以下命令启动：
+      ```
+      php artisan horizon
+      ```
+      使用 horizon 命令来启动队列系统和任务监控，无需使用 queue:listen
+  - 6.线上部署须知（进程管理工具）
+    - 开发环境中：为了测试方便，直接在命令行里调用 artisan horizon 进行队列监控
+    - 生产环境中：需要配置一个**进程管理工具**来监控 artisan horizon 命令的执行，以便在其意外退出时自动重启。当服务器部署新代码时，需要终止当前 Horizon 主进程，然后通过进程管理工具来重启，从而使用最新的代码。
+    - 简而言之，生产环境下使用队列需要注意以下两个问题：
+      - 1.使用 **Supervisor** 进程工具进行管理，配置和使用请参照 [文档](https://learnku.com/docs/laravel/6.x/horizon/5190#Supervisor-%E9%85%8D%E7%BD%AE) 进行配置；
+      - 2.每一次部署代码时，需 `artisan horizon:terminate` 然后再 `artisan horizon` 重新加载代码。
+    - 线上部署的话，还要注意一个权限控制的问题
+  - 7.为了开发方便，将开发环境的队列驱动改回 sync 同步模式，就是说不使用任何队列，实时执行：
+    .env
+    ```
+    QUEUE_CONNECTION=sync
+    ```
+  
