@@ -3430,8 +3430,10 @@
               }
 
               // 只有数据库类型通知才需提醒，其他频道如 Email、短信、Slack 都略过
-              if (method_exists($instance, 'toDatabase')) {
-                  $this->increment('notification_count');
+              if (method_exists ($instance, 'toDatabase')) {
+                  // $this->increment('notification_count', 1);
+                  $this->notification_count = $this->notifications()->count() + 1;
+                  $this->save();
               }
 
               $this->laravelNotify($instance);
@@ -3439,6 +3441,130 @@
           ...
       }
       ```
+### 7.5 消息列表
+  - 1.新建路由 routes/web.php
+    ```
+    Route::resource('notifications', 'NotificationsController', ['only' => ['index']]);
+    ```
+  - 2.顶部导航入口
+    ```
+    <li class="nav-item notification-badge">
+      <a class="nav-link mr-3 badge badge-pill badge-{{ Auth::user()->notification_count > 0 ? 'hint' : 'secondary' }} text-white" href="{{ route('notifications.index') }}">
+        {{ Auth::user()->notification_count }}
+      </a>
+    </li>
+    ```
+    - 样式 resources/sass/app.scss
+      ```
+      /* 消息通知 */
+      .notification-badge {
+        .badge {
+          font-size: 12px;
+          margin-top: 14px;
+        }
 
+        .badge-secondary {
+          background-color: #EBE8E8;
+        }
 
+        .badge-hint {
+          background-color: #d15b47 !important;
+        }
+      }
+      ```
+  - 3.控制器 
+    ```
+    php artisan make:controller NotificationsController
+    ```
+    app/Http/Controllers/NotificationsController.php
+    ```
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
 
+    public function index()
+    {
+        // 获取登录用户的所有通知
+        $notifications = Auth::user()->notifications()->paginate(20);
+        // 标记为已读，未读数量清零
+        Auth::user()->markAsRead();
+        return view('notifications.index', compact('notifications'));
+    }
+    ```
+  - 4.模型方法 markAsRead()： app/Models/User.php
+    ```
+    public function markAsRead()
+    {
+        $this->notification_count = 0;
+        $this->save();
+        $this->unreadNotifications->markAsRead();
+    }
+    ```
+  - 5.视图 resources/views/notifications/index.blade.php
+    ```
+    @extends('layouts.app')
+
+    @section('title', '我的通知')
+
+    @section('content')
+      <div class="container">
+        <div class="col-md-10 offset-md-1">
+          <div class="card ">
+
+            <div class="card-body">
+
+              <h3 class="text-xs-center">
+                <i class="far fa-bell" aria-hidden="true"></i> 我的通知
+              </h3>
+              <hr>
+
+              @if ($notifications->count())
+
+                <div class="list-unstyled notification-list">
+                  @foreach ($notifications as $notification)
+                    @include('notifications.types._' . Str::snake(class_basename($notification->type)))
+                  @endforeach
+
+                  {!! $notifications->render() !!}
+                </div>
+
+              @else
+                <div class="empty-block">没有消息通知！</div>
+              @endif
+
+            </div>
+          </div>
+        </div>
+      </div>
+    @stop
+    ```
+    - 通知数据库表的 `Type` 字段保存的是通知类全称，如 ：App\Notifications\TopicReplied 。 
+    - Str::snake(class_basename($notification->type)) 渲染以后会是 —— `topic_replied`。`class_basename()` 方法会取到 `TopicReplied`，Laravel 的辅助方法 Str::snake() 会字符串格式化为**下划线命名**。
+    - 子视图：resources/views/notifications/types/_topic_replied.blade.php
+      ```
+      <li class="media @if ( ! $loop->last) border-bottom @endif">
+        <div class="media-left">
+          <a href="{{ route('users.show', $notification->data['user_id']) }}">
+            <img class="media-object img-thumbnail mr-3" alt="{{ $notification->data['user_name'] }}" src="{{ $notification->data['user_avatar'] }}" style="width:48px;height:48px;" />
+          </a>
+        </div>
+
+        <div class="media-body">
+          <div class="media-heading mt-0 mb-1 text-secondary">
+            <a href="{{ route('users.show', $notification->data['user_id']) }}">{{ $notification->data['user_name'] }}</a>
+            评论了
+            <a href="{{ $notification->data['topic_link'] }}">{{ $notification->data['topic_title'] }}</a>
+
+            <span class="meta float-right" title="{{ $notification->created_at }}">
+              <i class="far fa-clock"></i>
+              {{ $notification->created_at->diffForHumans() }}
+            </span>
+          </div>
+          <div class="reply-content">
+            {!! $notification->data['reply_content'] !!}
+          </div>
+        </div>
+      </li>
+      ```
+      - $notification->data 拿到在通知类 toDatabase() 里构建的数组。

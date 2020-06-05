@@ -25,7 +25,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
         // 只有数据库类型通知才需提醒，其他频道如 Email、短信、Slack 都略过
         if (method_exists ($instance, 'toDatabase')) {
-            $this->increment('notification_count', 1);
+            // $this->increment('notification_count', 1);
+            $this->notification_count = $this->notifications()->count() + 1;
+            $this->save();
         }
 
         $this->laravelNotify($instance);
@@ -33,7 +35,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     protected $fillable = [
-        'name', 'email', 'password', 'introduction', 'avatar'
+        'name', 'email', 'password', 'introduction', 'avatar',
     ];
 
     protected $hidden = [
@@ -57,5 +59,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function replies()
     {
         return $this->hasMany(Reply::class);
+    }
+
+    public function markAsRead()
+    {
+        $this->notification_count = 0;
+        $this->save();
+        $this->unreadNotifications->markAsRead();
     }
 }
