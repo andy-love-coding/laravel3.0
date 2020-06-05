@@ -25,9 +25,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
         // 只有数据库类型通知才需提醒，其他频道如 Email、短信、Slack 都略过
         if (method_exists ($instance, 'toDatabase')) {
-            // $this->increment('notification_count', 1);
-            $this->notification_count = $this->notifications()->count() + 1;
-            $this->save();
+            $this->increment('notification_count', 1);
         }
 
         $this->laravelNotify($instance);

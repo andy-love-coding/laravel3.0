@@ -3431,9 +3431,7 @@
 
               // 只有数据库类型通知才需提醒，其他频道如 Email、短信、Slack 都略过
               if (method_exists ($instance, 'toDatabase')) {
-                  // $this->increment('notification_count', 1);
-                  $this->notification_count = $this->notifications()->count() + 1;
-                  $this->save();
+                  $this->increment('notification_count', 1);
               }
 
               $this->laravelNotify($instance);
@@ -3568,3 +3566,53 @@
       </li>
       ```
       - $notification->data 拿到在通知类 toDatabase() 里构建的数组。
+### 7.6 邮件通知
+  - 1.[邮箱配置](https://learnku.com/courses/laravel-intermediate-training/6.x/mail-notification/5583#a96fb2) `.env` 中：
+    ```
+    MAIL_DRIVER=smtp
+    MAIL_HOST=smtp.qq.com
+    MAIL_PORT=25
+    MAIL_USERNAME=xxxxxxxxxxxxxx@qq.com
+    MAIL_PASSWORD=xxxxxxxxx
+    MAIL_ENCRYPTION=tls
+    MAIL_FROM_ADDRESS=xxxxxxxxxxxxxx@qq.com
+    MAIL_FROM_NAME=LaraBBS
+    ```
+  - 2.添加邮件通知频道 app/Notifications/TopicReplied.php
+    ```
+     public function via($notifiable)
+    {
+        // 开启通知的频道
+        return ['database', 'mail'];
+    }
+    public function toMail($notifiable)
+    {
+        $url = $this->reply->topic->link(['#reply' . $this->reply->id]);
+
+        return (new MailMessage)
+                    ->line('你的话题有新回复！')
+                    ->action('查看回复', $url);
+    }
+    ```
+  - 3.[使用队列发送邮件](https://learnku.com/courses/laravel-intermediate-training/6.x/mail-notification/5583#9386ac)
+    - TopicReplied.php 中把
+      ```
+      class TopicReplied extends Notification
+      ```
+      修改为：
+      ```
+      class TopicReplied extends Notification implements ShouldQueue
+      ```
+    - 测试下队列
+      - 在 `.env` 中开启队列驱动 
+        ```
+        QUEUE_CONNECTION=redis
+        ```
+      - 运行队列监控
+        ```
+        php artisan horizon
+        ```
+      - 测试成功后，在 `` 中改为原来的 sync 实时模式：
+        ```
+        QUEUE_CONNECTION=sync
+        ```

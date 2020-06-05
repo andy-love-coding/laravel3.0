@@ -42,7 +42,7 @@
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdown">
             <a href="{{ route('users.show', Auth::id()) }}" class="dropdown-item">
-              <i class="far fa-usr mr-2"></i>
+              <i class="far fa-user mr-2"></i>
               个人中心
             </a>
             <div class="dropdown-divider"></div>
