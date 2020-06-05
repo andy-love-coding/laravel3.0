@@ -22,10 +22,18 @@ class ReplyObserver
         // $reply->topic->increment('reply_count', 1);
 
         // 方法二：先计算总数，再赋值、保存。推荐此法
-        $reply->topic->reply_count = $reply->topic->replies()->count();
-        $reply->topic->save();
+        // $reply->topic->reply_count = $reply->topic->replies()->count();
+        // $reply->topic->save();
+        $reply->topic->updateReplyCount();
 
         // 通知话题作者有新的评论
         $reply->topic->user->notify(new TopicReplied($reply));
+    }
+
+    public function deleted(Reply $reply)
+    {
+        // $reply->topic->reply_count = $reply->topic->replies()->count();
+        // $reply->save();
+        $reply->topic->updateReplyCount();
     }
 }

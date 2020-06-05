@@ -3616,3 +3616,78 @@
         ```
         QUEUE_CONNECTION=sync
         ```
+### 7.7 删除回复
+  - 1.删除按钮 resources/views/topics/_reply_list.blade.php
+    ```
+    {{-- 回复删除按钮 --}}
+    @can('destroy', $reply)
+      <span class="meta float-right">
+        <form action="{{ route('replies.destroy', $reply->id) }}"
+            onsubmit="return confirm('确定要删除此评论？');"
+            method="post">
+          {{ csrf_field() }}
+          {{ method_field('DELETE') }}
+          <button type="submit" class="btn btn-default btn-xs pull-left text-secondary">
+            <i class="far fa-trash-alt"></i>
+          </button>
+        </form>
+      </span>
+    @endcan
+    ```
+  - 2.控制器处理
+    ```
+    public function destroy(Reply $reply)
+    {
+        $this->authorize('destroy', $reply);
+        $reply->delete();
+
+        return redirect()->to($reply->topic->link())->with('success', '评论删除成功！');
+    }
+    ```
+  - 3.授权策略 app/Policies/ReplyPolicy.php
+    ```
+    public function destroy(User $user, Reply $reply)
+    {
+        return $user->isAuthorOf($reply)  || $user->isAuthorOf($reply->topic);
+    }
+    ```
+  - 4.删除回复时更新回复数 app/Observers/ReplyObserver.php
+    ```
+    public function created(Reply $reply)
+    {
+        // 方法一：自增。不建议用此法
+        // $reply->topic->increment('reply_count', 1);
+
+        // 方法二：先计算总数，再赋值、保存。推荐此法
+        // $reply->topic->reply_count = $reply->topic->replies()->count();
+        // $reply->topic->save();
+        $reply->topic->updateReplyCount();
+
+        // 通知话题作者有新的评论
+        $reply->topic->user->notify(new TopicReplied($reply));
+    }
+
+    public function deleted(Reply $reply)
+    {
+        // $reply->topic->reply_count = $reply->topic->replies()->count();
+        // $reply->save();
+        $reply->topic->updateReplyCount();
+    }
+    ```
+    - 抽象出话题数更新函数：app/Models/Topic.php
+      ```
+      public function updateReplyCount()
+      {
+          $this->reply_count = $this->replies->count();
+          $this->save();
+      }
+      ```
+  - 5.话题连带删除(模型观察器中慎用模型，用DB) app/Observers/TopicObserver.php
+    ```
+    // 删除话题时，连带删除话题的回复
+    // 在模型监听器中，数据库操作需避免再次触发 Eloquent 事件，以免造成联动逻辑冲突。所以这里我们使用了 DB 类进行操作。
+    public function deleted(Topic $topic)
+    {
+        \DB::table('replies')->where('topic_id', $topic->id)->delete();
+    }
+    ```
