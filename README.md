@@ -3691,3 +3691,119 @@
         \DB::table('replies')->where('topic_id', $topic->id)->delete();
     }
     ```
+## 8 角色权限和后台管理
+### 8.1 多角色用户权限
+  - 1.安装 [Laravel-permission](https://github.com/spatie/laravel-permission) 扩展包
+    ```
+    composer require "spatie/laravel-permission:~3.0"
+    ```
+    发布文件(生成迁移文件和配置文件)
+    ```
+    php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="migrations"
+    ```
+    执行迁移
+    ```
+    php artisan migrate
+    ```
+  - 2.加载 HasRoles
+    - 我们还需在 User 中使用 laravel-permission 提供的 Trait —— HasRoles，此举能让我们获取到扩展包提供的所有权限和角色的操作方法。
+    app/Models/User.php
+    ```
+    use Spatie\Permission\Traits\HasRoles;
+
+    class User extends Authenticatable implements MustVerifyEmailContract
+    {
+        use HasRoles;
+        ...
+    }
+    ```
+  - 3.初始化角色和权限
+    用迁移文件来初始化数据
+    ```
+    php artisan make:migration seed_roles_and_permissions_data
+    ```
+    ```
+    <?php
+
+    use Illuminate\Support\Facades\Schema;
+    use Illuminate\Database\Schema\Blueprint;
+    use Illuminate\Database\Migrations\Migration;
+
+    use Illuminate\Database\Eloquent\Model;
+    use Spatie\Permission\Models\Role;
+    use Spatie\Permission\Models\Permission;
+
+    class SeedRolesAndPermissionsData extends Migration
+    {
+        public function up()
+        {
+            // 需清除缓存，否则会报错
+            app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+            // 先创建权限
+            Permission::create(['name' => 'manage_contents']);
+            Permission::create(['name' => 'manage_users']);
+            Permission::create(['name' => 'edit_settings']);
+
+            // 创建站长角色，并赋予权限
+            $founder = Role::create(['name' => 'Founder']);
+            $founder->givePermissionTo('manage_contents');
+            $founder->givePermissionTo('manage_users');
+            $founder->givePermissionTo('edit_settings');
+
+            // 创建管理员角色，并赋予权限
+            $maintainer = Role::create(['name' => 'Maintainer']);
+            $maintainer->givePermissionTo('manage_contents');
+        }
+
+        public function down()
+        {
+            // 需清除缓存，否则会报错
+            app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+            // 清空所有数据表数据
+            $tableNames = config('permission.table_names');
+
+            Model::unguard();
+            DB::table($tableNames['role_has_permissions'])->delete();
+            DB::table($tableNames['model_has_roles'])->delete();
+            DB::table($tableNames['model_has_permissions'])->delete();
+            DB::table($tableNames['roles'])->delete();
+            DB::table($tableNames['permissions'])->delete();
+            Model::reguard();
+        }
+    }
+    ```
+    - 为了测试的方便，我们需要在生成用户填充数据以后，为 1 号和 2 号用户分别指派角色，修改 run() 方法 ：
+      database/seeds/UsersTableSeeder.php
+      ```
+      public function run()
+      {
+          ...
+          // 初始化用户角色，将 1 号用户指派为『站长』
+          $user->assignRole('Founder');
+
+          // 将 2 号用户指派为『管理员』
+          $user = User::find(2);
+          $user->assignRole('Maintainer');
+      }
+      ```
+  - 4.刷新数据库
+    ```
+    php artisan migrate:refresh --seed
+    ```
+  - 5.关于 [laravel-permission 的一些简单用法](https://learnku.com/courses/laravel-intermediate-training/6.x/multi-role-user-rights/5586#294419)
+    ```
+    $role = Role::create(['name' => 'Founder']);
+    $role->givePermissionTo('manage_contents');
+    $user->assignRole('Founder');
+    $user->assignRole('writer', 'admin');
+    $user->assignRole(['writer', 'admin']);
+    $user->hasRole('Founder');
+    $user->hasAnyRole(Role::all());
+    $user->hasAllRoles(Role::all());
+    $user->can('manage_contents');
+    $role->hasPermissionTo('manage_contents');
+    $user->givePermissionTo('manage_contents');
+    $user->getDirectPermissions()
+    ```
