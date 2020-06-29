@@ -3807,3 +3807,74 @@
     $user->givePermissionTo('manage_contents');
     $user->getDirectPermissions()
     ```
+### 8.2 站点权限部署(sudo-su用户切换)
+  - 1.内容管理权限 app/Policies/Policy.php
+    ```
+    public function before($user, $ability)
+    {
+          // 如果用户拥有管理内容权限的话，即授权通过
+          if ($user->can('manage_contents')) {
+              return true;
+          }
+    }
+    ```
+    - 返回 true 是直接通过授权；
+    - 返回 false，会拒绝用户所有的授权；
+    - 如果返回的是 null，则通过其它的策略方法来决定授权通过与否。
+  - 2.用户切换工具 sudo-su
+    - 2.1 安装
+      ```
+      composer require "viacreative/sudo-su:~1.1"
+      ```
+    - 2.2 添加注册 Provider
+      我们只在开发环境中加载此扩展包：app/Providers/AppServiceProvider.php
+      ```
+      public function register()
+      {
+          if (app()->isLocal()) {
+              $this->app->register(\VIACreative\SudoSu\ServiceProvider::class);
+          }
+      }
+      ```
+    - 2.3 发布资源文件
+      ```
+      php artisan vendor:publish --provider="VIACreative\SudoSu\ServiceProvider"
+      ```
+    - 2.4 修改配置文件
+      ```
+      <?php
+
+      return [
+
+          // 允许使用的顶级域名
+          'allowed_tlds' => ['dev', 'local', 'test'],
+
+          // 用户模型
+          'user_model' => App\Models\User::class
+      ];
+      ```
+      - Sudosu 为了避免开发者在生产环境下误开启此功能，在配置选项 allowed_tlds 里做了域名后缀的限制，tld 为 Top Level Domain 的简写。此处因我们的项目域名为 larabbs.test，故将 test 域名后缀添加到 allowed_tlds 数组中。
+    - 2.5 模板植入 resources/views/layouts/app.blade.php
+      ```
+      @if (app()->isLocal())
+        @include('sudosu::user-selector')
+      @endif
+
+      <!-- Scripts -->
+      ```
+  - 3.Horizon 访问权限
+    - Horizon 控制面板页面的路由是 /horizon ，默认只能在 local 环境中访问仪表盘。我们可以使用 Horizon::auth 方法定义更具体的访问策略。auth 方法能够接受一个回调函数，此回调函数需要返回 true 或 false ，从而确认当前用户是否有权限访问 Horizon 仪表盘。接下来我们定义 /horizon 的访问权限，只有 站长 才有权限查看：
+    app/Providers/AuthServiceProvider.php
+    ```
+    public function boot()
+    {
+        ...
+        \Horizon::auth(function ($request) {
+            // 是否是站长
+            return \Auth::user()->hasRole('Founder');
+        });
+    }
+    ```
+    测试一下，一般用户访问会返回 403 报错页面，只有当我们使用 ID 为 1 的 Summer 用户访问时，才能顺利显示页面：
+
+
