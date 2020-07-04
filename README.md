@@ -3876,5 +3876,259 @@
     }
     ```
     测试一下，一般用户访问会返回 403 报错页面，只有当我们使用 ID 为 1 的 Summer 用户访问时，才能顺利显示页面：
+### 8.3 用户后台-初始化（Laravel Administrator）
+  - 1.安装 [Laravel Administrator](https://learnku.com/courses/laravel-intermediate-training/6.x/admin-dashboard/5588)
+    ```
+    composer require "summerblue/administrator:6.*"
+    ```
+  - 2.发布资源
+    ```
+    php artisan vendor:publish --provider="Frozennode\Administrator\AdministratorServiceProvider"
+    ```
+  - 3.配置讲解 config/administrator.php
+    ```
+    <?php
+    return array(
 
+        // 后台的 URI 入口
+        'uri' => 'admin',
+
+        // 后台专属域名，没有的话可以留空
+        'domain' => '',
+
+        // 应用名称，在页面标题和左上角站点名称处显示
+        'title' => env('APP_NAME', 'Laravel'),
+
+        // 模型配置信息文件存放目录
+        'model_config_path' => config_path('administrator'),
+
+        // 配置信息文件存放目录
+        'settings_config_path' => config_path('administrator/settings'),
+
+        /*
+        * 后台菜单数组，多维数组渲染结果为多级嵌套菜单。
+        *
+        * 数组里的值有三种类型：
+        * 1. 字符串 —— 子菜单的入口，不可访问；
+        * 2. 模型配置文件 —— 访问 `model_config_path` 目录下的模型文件，如 `users` 访问的是 `users.php` 模型配置文件；
+        * 3. 配置信息 —— 必须使用前缀 `settings.`，对应 `settings_config_path` 目录下的文件，如：默认设置下，
+        *              `settings.site` 访问的是 `administrator/settings/site.php` 文件
+        * 4. 页面文件 —— 必须使用前缀 `page.`，如：`page.pages.analytics` 对应 `administrator/pages/analytics.php`
+        *               或者是 `administrator/pages/analytics.blade.php` ，两种后缀名皆可
+        *
+        * 示例：
+        *  [
+        *      'users',
+        *      'E-Commerce' => ['collections', 'products', 'product_images', 'orders'],
+        *      'Settings'  => ['settings.site', 'settings.ecommerce', 'settings.social'],
+        *      'Analytics' => ['E-Commerce' => 'page.pages.analytics'],
+        *  ]
+        */
+        'menu' => [
+            '用户与权限' => [
+                'users',
+            ],
+        ],
+
+        /*
+        * 权限控制的回调函数。
+        *
+        * 此回调函数需要返回 true 或 false ，用来检测当前用户是否有权限访问后台。
+        * `true` 为通过，`false` 会将页面重定向到 `login_path` 选项定义的 URL 中。
+        */
+        'permission' => function () {
+            // 只要是能管理内容的用户，就允许访问后台
+            return Auth::check() && Auth::user()->can('manage_contents');
+        },
+
+        /*
+        * 使用布尔值来设定是否使用后台主页面。
+        *
+        * 如值为 `true`，将使用 `dashboard_view` 定义的视图文件渲染页面；
+        * 如值为 `false`，将使用 `home_page` 定义的菜单条目来作为后台主页。
+        */
+        'use_dashboard' => false,
+
+        // 设置后台主页视图文件，由 `use_dashboard` 选项决定
+        'dashboard_view' => '',
+
+        // 用来作为后台主页的菜单条目，由 `use_dashboard` 选项决定，菜单指的是 `menu` 选项
+        'home_page' => 'users',
+
+        // 右上角『返回主站』按钮的链接
+        'back_to_site_path' => '/',
+
+        // 当选项 `permission` 权限检测不通过时，会重定向用户到此处设置的路径
+        'login_path' => 'login',
+
+        // 允许在登录成功后使用 Session::get('redirect') 将用户重定向到原本想要访问的后台页面
+        'login_redirect_key' => 'redirect',
+
+        // 控制模型数据列表页默认的显示条目
+        'global_rows_per_page' => 20,
+
+        // 可选的语言，如果不为空，将会在页面顶部显示『选择语言』按钮
+        'locales' => [],
+    );
+    ```
+  - 4.创建必要文件夹
+    Administrator 会监测 `settings_config_path` 和 `model_config_path` 选项目录是否能正常访问，否则会报错，故我们先使用以下命令新建目录
+    ```
+    mkdir -p config/administrator/settings
+    touch config/administrator/settings/.gitkeep
+    ```
+    在空文件夹中放置 .gitkeep 保证了 Git 会将此文件夹纳入版本控制器中。
+  - 5.导航入口 resources/views/layouts/_header.blade.php
+    ```
+    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+      @can('manage_contents')
+        <a class="dropdown-item" href="{{ url(config('administrator.uri')) }}">
+          <i class="fas fa-tachometer-alt mr-2"></i>
+          管理后台
+        </a>
+        <div class="dropdown-divider"></div>
+      @endcan
+      <a class="dropdown-item" href="{{ route('users.show', Auth::id()) }}">
+        <i class="far fa-user mr-2"></i>
+        个人中心
+      </a>
+    ```
+### 8.4 用户后台-用户
+  - 1.用户模型配置users : config/administrator/users.php
+    ```
+    <?php
+    use App\Models\User;
+
+    return [
+        // 页面标题
+        'title'   => '用户',
+
+        // 模型单数，用作页面『新建 $single』
+        'single'  => '用户',
+
+        // 数据模型，用作数据的 CRUD
+        'model'   => User::class,
+
+        // 设置当前页面的访问权限，通过返回布尔值来控制权限。
+        // 返回 True 即通过权限验证，False 则无权访问并从 Menu 中隐藏
+        'permission'=> function()
+        {
+            return Auth::user()->can('manage_users');
+        },
+
+        // 字段负责渲染『数据表格』，由无数的『列』组成，
+        'columns' => [
+
+            // 列的标示，这是一个最小化『列』信息配置的例子，读取的是模型里对应
+            // 的属性的值，如 $model->id
+            'id',
+
+            'avatar' => [
+                // 数据表格里列的名称，默认会使用『列标识』
+                'title'  => '头像',
+
+                // 默认情况下会直接输出数据，你也可以使用 output 选项来定制输出内容
+                'output' => function ($avatar, $model) {
+                    return empty($avatar) ? 'N/A' : '<img src="'.$avatar.'" width="40">';
+                },
+
+                // 是否允许排序
+                'sortable' => false,
+            ],
+
+            'name' => [
+                'title'    => '用户名',
+                'sortable' => false,
+                'output' => function ($name, $model) {
+                    return '<a href="/users/'.$model->id.'" target=_blank>'.$name.'</a>';
+                },
+            ],
+
+            'email' => [
+                'title' => '邮箱',
+            ],
+
+            'operation' => [
+                'title'  => '管理',
+                'sortable' => false,
+            ],
+        ],
+
+        // 『模型表单』设置项
+        'edit_fields' => [
+            'name' => [
+                'title' => '用户名',
+            ],
+            'email' => [
+                'title' => '邮箱',
+            ],
+            'password' => [
+                'title' => '密码',
+
+                // 表单使用 input 类型 password
+                'type' => 'password',
+            ],
+            'avatar' => [
+                'title' => '用户头像',
+
+                // 设置表单条目的类型，默认的 type 是 input
+                'type' => 'image',
+
+                // 图片上传必须设置图片存放路径
+                'location' => public_path() . '/uploads/images/avatars/',
+            ],
+            'roles' => [
+                'title'      => '用户角色',
+
+                // 指定数据的类型为关联模型
+                'type'       => 'relationship',
+
+                // 关联模型的字段，用来做关联显示
+                'name_field' => 'name',
+            ],
+        ],
+
+        // 『数据过滤』设置
+        'filters' => [
+            'id' => [
+
+                // 过滤表单条目显示名称
+                'title' => '用户 ID',
+            ],
+            'name' => [
+                'title' => '用户名',
+            ],
+            'email' => [
+                'title' => '邮箱',
+            ],
+        ],
+    ];
+    ```
+  - 2.修改密码([Eloquent 修改器](https://learnku.com/docs/laravel/6.x/eloquent-mutators/5179))
+    app/Models/User.php
+    ```
+    // Eloquent 修改器
+    public function setPasswordAttribute($value)
+    {
+        // 如果值的长度等于 60，则认为是已经做过加密的情况
+        if (strlen($value) != 60) {
+            // 这么做，是要排除「修改密码时已经加密过的密码，再加密」
+            $value = bcrypt($value);
+        }
+        $this->attributes['password'] = $value;
+    }
+    ```
+    「修改器」命名规范是 set{属性的驼峰式命名}Attribute，当我们给属性赋值时，如 $user->password = 'password'，该修改器将被自动调用
+  - 3.修改器头像([Eloquent 修改器](https://learnku.com/docs/laravel/6.x/eloquent-mutators/5179)) 
+    app/Models/User.php
+    ```
+    public function setAvatarAttribute($path)
+    {
+        // 如果不是 `http` 子串开头，那就是从后台上传的，需要补全 URL
+        if ( ! \Str::startsWith($path, 'http')) {
+            $path = config('app.url') . "/uploads/images/avatars/$path";
+        }
+        $this->attributes['avatar'] = $path;
+    }
+    ```
 

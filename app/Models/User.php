@@ -67,4 +67,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $this->save();
         $this->unreadNotifications->markAsRead();
     }
+
+    // Eloquent 修改器
+    public function setPasswordAttribute($value)
+    {
+        // 如果值的长度等于 60，则认为是已经做过加密的情况
+        if (strlen($value) != 60) {
+            // 这么做，是要排除「修改密码时已经加密过的密码，再加密」
+            $value = bcrypt($value);
+        }
+        $this->attributes['password'] = $value;
+    }
+
+    public function setAvatarAttribute($path)
+    {
+        // 如果不是 `http` 子串开头，那就是从后台上传的，需要补全 URL
+        if ( ! \Str::startsWith($path, 'http')) {
+            $path = config('app.url') . "/uploads/images/avatars/$path";
+        }
+        $this->attributes['avatar'] = $path;
+    }
+
 }
