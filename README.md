@@ -4721,7 +4721,7 @@
     - 设置信息存储位置
       - 打开设置页面 domain/admin/settings/site 页面保存设置信息后，设置信息会存储在 `storage/administrator_settings/site.josn` 文件中
   - 3.使用配置信息
-    - Administrator 自带了一个辅助函数 setting() 允许我们来获取设置信息
+    - Administrator 自带了一个`辅助函数 setting()` 允许我们来获取设置信息
       ```
       setting($key, $default = '', $setting_name = 'site');
       $site_name = setting('site_name'); // 获取『站点名称』的例子
@@ -4743,4 +4743,75 @@
       <meta name="keyword" content="@yield('keyword', setting('seo_keyword', 'LaraBBS,社区,论坛,开发者论坛'))" />
 
       <!-- Styles -->
+      ```
+### 8.8 后台范围权限
+  - Denied 页面
+    - 新建路由 routes/web.php
+      ```
+      Route::get('permission-denied', 'PagesController@permissionDenied')->name('permission-denied');
+      ```
+    - Administrator 配置修改 config/administrator.php
+      ```
+      // 当选项 `permission` 权限检测不通过时，会重定向用户到此处设置的路径
+      'login_path' => 'permission-denied',
+      ```
+    - 新增控制器方法 app/Http/Controllers/PagesController.php
+      ```
+      public function permissionDenied()
+      {
+          // 如果当前用户有权限访问后台，直接跳转访问
+          // 这个判断的必要性：未登录时(无权)→登录后(有权)->跳转访问
+          if (config('administrator.permission')()) {
+              return redirect(url(config('administrator.uri')), 302);
+          }
+
+          // 否则使用「拒绝」视图
+          return view('pages.permission-denied');
+      }
+      ```
+    - 视图文件 resources/views/pages/permission_denied.blade.php
+      ```
+      @extends('layouts.app')
+      @section('title', '无权限访问')
+
+      @section('content')
+        <div class="col-md-4 offset-md-4">
+          <div class="card ">
+            <div class="card-body">
+              @if (Auth::check())
+                <div class="alert alert-danger text-center mb-0">
+                  当前登录账号无后台访问权限。
+                </div>
+              @else
+                <div class="alert alert-danger text-center">
+                  请登录以后再操作
+                </div>
+
+                <a class="btn btn-lg btn-primary btn-block" href="{{ route('login') }}">
+                  <i class="fas fa-sign-in-alt"></i>
+                  登 录
+                </a>
+              @endif
+            </div>
+          </div>
+        </div>
+      @stop
+      ```
+    - 测试一下
+      ```
+      未登录用户；
+      登录无权限用户；
+      最后是站长访问。
+      ```
+  - 后台部分可见(解决无限302跳转死循环问题)
+    - 死循环问题：
+      - 我们的 1 号用户 Summer 的角色是站长，拥有所有权限，2 号用户是管理员，只拥有管理内容的权限，没有『用户管理』权限，可以理解为，只有站长才能删除用户、修改用户组权限和修改站点配置。接下来我们使用 2 号用户来访问后台：Chrome 浏览器会报错 ERR_TOO_MANY_REDIRECTS，意为太多跳转死循环，页面无法渲染
+    - 原因
+      - administrator.php 中，我们将 home_page 选项设置为 users 页面，当我们使用 2 号用户访问 /admin 时，会自动跳转到 users 页面，users 页面检测到 2 号用户没有访问权限，遂重定向到后台首页 /admin 中，访问首页又会重定向到 users 中，所以就是死循环。
+    - 解决方法
+      - 将 home_page 选项改为访问权限较低的页面如 topics，这个页面是所有进入后台的用户都有权限访问的
+      config/administrator.php
+      ```
+      // 用来作为后台主页的菜单条目，由 `use_dashboard` 选项决定，菜单指的是 `menu` 选项
+      'home_page' => 'topics',
       ```
