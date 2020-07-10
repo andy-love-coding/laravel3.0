@@ -4815,3 +4815,263 @@
       // 用来作为后台主页的菜单条目，由 `use_dashboard` 选项决定，菜单指的是 `menu` 选项
       'home_page' => 'topics',
       ```
+## 9 杂项
+### 9.1 边栏活跃用户
+  - 1.活跃用户算法 Trait
+    - 系统 每一个小时 计算一次，统计 最近 7 天 所有用户发的 帖子数 和 评论数，用户每发一个帖子则得 4 分，每发一个回复得 1 分，计算出所有人的『得分』后再倒序，排名前 6 的用户将会显示在「活跃用户」列表里
+    - 算法代码 app/Models/Traits/ActiveUserHelper.php
+      ```
+      <?php
+
+      namespace App\Models\Traits;
+
+      use App\Models\Topic;
+      use App\Models\Reply;
+      use Carbon\Carbon;
+      use Cache;
+      use DB;
+      use Arr;
+
+      trait ActiveUserHelper
+      {
+        // 用于存放临时用户数据
+        /**
+        * [
+        *  'user_id' => ['score' => 20],
+        *  '1' => ['score' => 20],
+        *  '4' => ['score' => 16],
+        *  ...
+        * ]
+        */
+        protected $users = [];
+
+        // 配置信息
+        protected $topic_weight = 4; // 话题权重
+        protected $reply_weight = 1; // 回复权重
+        protected $pass_days = 7;    // 多少天内发表过内容
+        protected $user_number = 6;  // 取出来多少用户
+        
+        // 缓存相关配置
+        protected $cache_key = 'larabbs_active_users';
+        protected $cache_expire_in_seconds = 65 * 60;
+
+        public function getActiveUsers()
+        {
+          // 尝试从缓存中去除 cache_key 对应的数据。 如果能取到，便直接返回数据。
+          // 否则运行匿名函数中的代码取出活跃用户数据，返回的同时做了缓存。
+          return Cache::remember($this->cache_key, $this->cache_expire_in_seconds, function(){
+            return $this->calculateActiveUsers();
+          });
+        }
+
+        public function calculateAndCacheActiveUsers()
+        {
+          // 取得活跃用户列表
+          $active_users = $this->calculateActiveUsers();
+          // 并加以缓存
+          $this->cacheActiveUsers($active_users);
+        }
+
+        private function calculateActiveUsers()
+        {
+          $this->calculateTopicScore();
+          $this->calculateReplyScore();
+
+          // 数组按照得分排序（顺序）
+          $users = Arr::sort($this->users, function($user) {
+            return $user['score'];
+          });
+
+          // 我们需要的是倒序，高分靠前，第二个参数为保持数组的 KEY 不变（此处 KEY 为 user_id）
+          $users = array_reverse($users, true);
+
+          // 只获取我们想要的数量
+          $users = array_slice($users, 0, $this->user_number, true);
+
+          // 新建一个空集合
+          $active_users = collect();
+
+          foreach($users as $user_id => $user) {
+            // 寻找下是否可以找到用户
+            $user = $this->find($user_id);
+
+            // 如果数据库里有该用户的话
+            if ($user) {
+              // 将此用户实体放入集合的末尾
+              $active_users->push($user);
+            }
+          }
+
+          // 返回数据
+          return $active_users;
+        }
+
+        private function calculateTopicScore()
+        {
+          // 从话题数据表里面取出限定时间范围（$pass_days）内，有发表过话题的用户
+          // 并且同时取出用户此段时间内发布话题的数量
+          $topic_users = Topic::query()->select(DB::raw('user_id, count(*) as topic_count'))
+                                      ->where('created_at', '>=', Carbon::now()->subDays($this->pass_days))
+                                      ->groupBy('user_id')
+                                      ->get();
+          // 根据话题数量计算得分
+          foreach($topic_users as $value) {
+            $this->users[$value->user_id]['score'] = $value->topic_count * $this->topic_weight;
+          }
+        }
+
+        private function calculateReplyScore()
+        {
+          // 从回复数据表里取出限定时间范围（$pass_days）内，有发表过回复的用户
+          // 并且同时取出用户此段时间内发布回复的数量
+          $reply_users = Reply::query()->select(DB::raw('user_id, count(*) as reply_count'))
+                                      ->where('created_at', '>=', Carbon::now()->subDays($this->pass_days))
+                                      ->groupBy('user_id')
+                                      ->get();
+          // 根据回复数量计算得分
+          foreach ($reply_users as $value) {
+            $reply_score = $value->reply_count * $this->reply_weight;
+            if (isset($this->users[$value->user_id])) {
+              $this->users[$value->user_id]['score'] += $reply_score; 
+            } else {
+              $this->users[$value->user_id]['score'] = $reply_score;
+            }
+          }
+        }
+
+        private function cacheActiveUsers($active_users)
+        {
+          // 将数据放入缓存中
+          Cache::put($this->cache_key, $active_users, $this->cache_expire_in_seconds);
+        }
+      }
+      ```
+    - 缓存驱动 .env
+      ```
+      CACHE_DRIVER=redis
+      ```
+  - 2.新建 Artisan 命令 (make:command)
+    ```
+    php artisan make:command CalculateActiveUser --command=larabbs:calculate-active-user
+    ```
+    - 参数 --command 是指定 Artisan 调用的命令，一般情况下，我们推荐为命令加上命名空间，如本项目的 larabbs:
+    - 打开生成的 CalculateActiveUser 命令类文件，填入以下内容：
+      app/Console/Commands/CalculateActiveUser.php
+      ```
+      <?php
+
+      namespace App\Console\Commands;
+
+      use Illuminate\Console\Command;
+      use App\Models\User;
+
+      class CalculateActiveUser extends Command
+      {
+          // 供我们调用命令
+          protected $signature = 'larabbs:calculate-active-user';
+
+          // 命令的描述
+          protected $description = '生成活跃用户';
+
+          // 最终执行的方法
+          public function handle(User $user)
+          {
+              // 在命令行打印一行信息
+              $this->info("开始计算...");
+
+              $user->calculateAndCacheActiveUsers();
+
+              $this->info("成功生成！");
+          }
+      }
+      ```
+      - 此刻使用 `php artisan list` 即可看到我们的命令行
+    - 执行此命令生成『活跃用户』数据：
+      ```
+      php artisan larabbs:calculate-active-user
+      ```
+  - 3.读取缓存数据 
+    - app/Http/Controllers/TopicsController.php
+      ```
+      public function index(Request $request, Topic $topic, User $user)
+      {
+          $topics = $topic->withOrder($request->order)
+                          ->with('user', 'category')  // 预加载防止 N+1 问题
+                          ->paginate(20);
+          $active_users = $user->getActiveUsers();
+          // dd($active_users);
+          return view('topics.index', compact('topics', 'active_users'));
+      }
+      ```
+    - app/Http/Controllers/CategoriesController.php
+      ```
+      public function show(Category $category, Request $request, Topic $topic, User $user)
+      {
+          // 读取分类 ID 关联的话题，并按每 20 条分页
+          $topics = $topic->withOrder($request->order)
+                          ->where('category_id', $category->id)
+                          ->with('user', 'category')   // 预加载防止 N+1 问题
+                          ->paginate(20);
+          // 活跃用户列表
+          $active_users = $user->getActiveUsers();
+
+          // 传参变量话题和分类到模板中
+          return view('topics.index', compact('topics', 'category', 'active_users'));
+      }
+      ```
+  - 4.页面展示 resources/views/topics/_sidebar.blade.php
+    ```
+    <div class="card ">
+      <div class="card-body">
+        <a href="{{ route('topics.create') }}" class="btn btn-success btn-block" aria-label="Left Align">
+          <i class="fas fa-pencil-alt mr-2"></i> 新建帖子
+        </a>
+      </div>
+    </div>
+
+    @if (count($active_users))
+      <div class="card mt-4">
+        <div class="card-body active-users pt-2">
+          <div class="text-center mt-1 mb-0 text-muted">活跃用户</div>
+          <hr class="mt-2">
+          @foreach ($active_users as $active_user)
+            <a class="media mt-2" href="{{ route('users.show', $active_user->id) }}">
+              <div class="media-left media-middle mr-2 ml-1">
+                <img src="{{ $active_user->avatar }}" width="24px" height="24px" class="media-object">
+              </div>
+              <div class="media-body">
+                <small class="media-heading text-secondary">{{ $active_user->name }}</small>
+              </div>
+            </a>
+          @endforeach
+        </div>
+      </div>
+    @endif
+    ```
+  - [5.计划任务](https://learnku.com/courses/laravel-intermediate-training/6.x/active-users/5595#23e57e)
+    - 5.1 修改系统的 Cron 计划任务配置信息
+      ```
+      export EDITOR=vi && crontab -e
+      ```
+      添加下面这一行：
+      ```
+      * * * * * php /home/vagrant/Code/larabbs/artisan schedule:run >> /dev/null 2>&1
+      ```
+      系统的 Cron 已经设定好了，现在 Cron 软件将会每分钟调用一次 Laravel 命令调度器，当 schedule:run 命令执行时， Laravel 会评估你的计划任务并运行预定任务。
+    - 5.2 注册 Laravel 的调度任务 app/Console/Kernel.php
+      ```
+      protected function schedule(Schedule $schedule)
+      {
+          // 一小时执行一次『活跃用户』数据生成的命令
+          $schedule->command('larabbs:calculate-active-user')->hourly();
+      }
+      ```
+      - 请记得测试调度任务是否执行成功，可以缩短时间来观察,如
+        ```
+        $schedule->command('larabbs:calculate-active-user')->hourly();
+      ```
+  - 6.缓存效果示例
+    ```
+    php artisan cache:clear
+    ```
+    
