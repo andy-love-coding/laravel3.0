@@ -4719,7 +4719,7 @@
     ];
     ```
     - 设置信息存储位置
-      - 打开设置页面 domain/admin/settings/site 页面保存设置信息后，设置信息会存储在 `storage/administrator_settings/site.josn` 文件中
+      - 打开设置页面 domain/administrator/settings/site.php 页面保存设置信息后，设置信息会存储在 `storage/administrator_settings/site.josn` 文件中
   - 3.使用配置信息
     - Administrator 自带了一个`辅助函数 setting()` 允许我们来获取设置信息
       ```
@@ -5074,4 +5074,282 @@
     ```
     php artisan cache:clear
     ```
-    
+### 9.2 边栏资源推荐（Observer）
+  - 1.生成数据模型
+    ```
+    \App\Models\Link::observe(\App\Observers\LinkObserver::class);
+    ```
+    修改 {timestamp}_create_links_table
+    ```
+    public function up()
+    {
+        Schema::create('links', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('title')->comment('资源的描述')->index();
+            $table->string('link')->comment('资源的链接')->index();
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('links');
+    }
+    ```
+    执行数据库迁移
+    ```
+    php artisan migrate
+    ```
+    修改模型的 $fillable 字段：app/Models/Link.php
+    ```
+    <?php
+
+    namespace App\Models;
+
+    use Illuminate\Database\Eloquent\Model;
+
+    class Link extends Model
+    {
+        protected $fillable = ['title', 'link'];
+    }
+    ```
+  - 2.生成假数据
+    生成模型工厂
+    ```
+    php aritsan make:factory LinkFactory
+    ```
+    修改模型工厂：database/factories/LinkFactory.php
+    ```
+    <?php
+
+    use Faker\Generator as Faker;
+
+    $factory->define(App\Models\Link::class, function (Faker $faker) {
+        return [
+            'title' => $faker->name,
+            'link' => $faker->url,
+        ];
+    });
+    ```
+    生成填充类
+    ```
+    php artisan make:seeder LinksTableSeeder
+    ```
+    修改填充类：database/seeds/LinksTableSeeder.php
+    ```
+    <?php
+
+    use Illuminate\Database\Seeder;
+    use App\Models\Link;
+
+    class LinksTableSeeder extends Seeder
+    {
+        public function run()
+        {
+            // 生成数据集合
+            $links = factory(Link::class)->times(6)->make();
+
+            // 将数据集合转换为数组，并插入到数据库中
+            Link::insert($links->toArray());
+        }
+    }
+    ```
+    注册 DatabaseSeeder : database/seeds/DatabaseSeeder.php
+    ```
+    public function run()
+    {
+        $this->call(UsersTableSeeder::class);
+        $this->call(TopicsTableSeeder::class);
+        $this->call(RepliesTableSeeder::class);
+        $this->call(LinksTableSeeder::class);
+    }
+    ```
+    生成假数据
+    ```
+    php artisan migrate:refresh --seed
+    ```
+  - 3.资源链接管理后台
+    - 3.1 后台『站点管理』子菜单下新增 links 入口：config/administrator.php
+      ```
+      'menu' => [
+          '用户与权限' => [
+              'users',
+              'roles',
+              'permissions',
+          ],
+          '内容管理' => [
+              'categories',
+              'topics',
+              'replies',
+          ],
+          '站点管理' => [
+              'settings.site',
+              'links',
+          ],
+      ],
+      ```
+    - 3.2 新建模型配置信息：config/administrator/links.php
+      ```
+      <?php
+
+      use App\Models\Link;
+
+      return [
+          'title'   => '资源推荐',
+          'single'  => '资源推荐',
+
+          'model'   => Link::class,
+
+          // 访问权限判断
+          'permission'=> function()
+          {
+              // 只允许站长管理资源推荐链接
+              return Auth::user()->hasRole('Founder');
+          },
+
+          'columns' => [
+              'id' => [
+                  'title' => 'ID',
+              ],
+              'title' => [
+                  'title'    => '名称',
+                  'sortable' => false,
+              ],
+              'link' => [
+                  'title'    => '链接',
+                  'sortable' => false,
+              ],
+              'operation' => [
+                  'title'  => '管理',
+                  'sortable' => false,
+              ],
+          ],
+          'edit_fields' => [
+              'title' => [
+                  'title'    => '名称',
+              ],
+              'link' => [
+                  'title'    => '链接',
+              ],
+          ],
+          'filters' => [
+              'id' => [
+                  'title' => '标签 ID',
+              ],
+              'title' => [
+                  'title' => '名称',
+              ],
+          ],
+      ];
+      ```
+  - 4.页面渲染
+    - 4.1 修改话题列表 app/Http/Controllers/TopicsController.php
+      ```
+      public function index(Request $request, Topic $topic, User $user, Link $link)
+      {
+          $topics = $topic->withOrder($request->order)
+                          ->with('user', 'category')  // 预加载防止 N+1 问题
+                          ->paginate(20);
+          $active_users = $user->getActiveUsers();
+          $links = $link->getAllCached();
+
+          return view('topics.index', compact('topics', 'active_users', 'links'));
+      }
+      ```
+    - 4.2 增加模型方法 app/Models/Link.php
+      ```
+      <?php
+
+      namespace App\Models;
+
+      use Illuminate\Database\Eloquent\Model;
+      use Cache;
+
+      class Link extends Model
+      {
+          protected $fillable = ['title', 'link'];
+
+          public $cache_key = 'larabbs_links';
+          protected $cache_expire_in_seconds = 1440 * 60;
+
+          public function getAllCached()
+          {
+              // 尝试从缓存中取出 cache_key 对应的数据。如果能取到，便直接返回数据。
+              // 否则运行匿名函数中的代码来取出 links 表中所有的数据，返回的同时做了缓存。
+              return Cache::remember($this->cache_key, $this->cache_expire_in_seconds, function(){
+                  return $this->all();
+              });
+          }
+      }
+      ```
+    - 4.3 修改边栏模板 resources/views/topics/_sidebar.blade.php
+      ```
+      ...
+      @if (count($links))
+        <div class="card mt-4">
+          <div class="card-body pt-2">
+            <div class="text-center mt-1 mb-0 text-muted">资源推荐</div>
+            <hr class="mt-2 mb-3">
+            @foreach ($links as $link)
+              <a class="media mt-1" href="{{ $link->link }}">
+                <div class="media-body">
+                  <span class="media-heading text-muted">{{ $link->title }}</span>
+                </div>
+              </a>
+            @endforeach
+          </div>
+        </div>
+      @endif
+      ```
+    - 4.4 修改分类列表 app/Http/Controllers/CategoriesController.php
+      ```
+      public function show(Category $category, Request $request, Topic $topic, User $user, Link $link)
+      {
+          // 读取分类 ID 关联的话题，并按每 20 条分页
+          $topics = $topic->withOrder($request->order)
+                          ->where('category_id', $category->id)
+                          ->with('user',  'category')  // 预加载防止 N+1 问题
+                          ->paginate(20);
+          // 活跃用户列表
+          $active_users = $user->getActiveUsers();
+          // 资源链接
+          $links = $link->getAllCached();
+          // 传参变量到模板中
+          return view('topics.index', compact('topics', 'category', 'active_users', 'links'));
+      }
+      ```
+  - 5.自动更新缓存（Observer）
+    - 缓存问题
+      尝试在后台修改链接的内容，然后查看前台页面，发现资源推荐并未发生修改。这是因为我们做了缓存，页面读取的是缓存里的信息，而后台更新的是数据库里的数据。
+    - 5.1 新建监控器（模型观察器）
+      ```
+      php artisan make:observer LinkObserver
+      ```
+      修改：app/Observers/LinkObserver.php
+      ```
+      <?php
+
+      namespace App\Observers;
+
+      use App\Models\Link;
+      use Cache;
+
+      class LinkObserver
+      {
+          // 在保存时清空 cache_key 对应的缓存
+          public function saved(Link $link)
+          {
+              Cache::forget($link->cache_key);
+          }
+      }
+      ```
+    - 5.2 注册监控器 app/Providers/AppServiceProvider.php
+      ```
+      public function boot()
+      {
+          \App\Models\User::observe(\App\Observers\UserObserver::class);
+          \App\Models\Reply::observe(\App\Observers\ReplyObserver::class);
+          \App\Models\Topic::observe(\App\Observers\TopicObserver::class);
+          \App\Models\Link::observe(\App\Observers\LinkObserver::class);
+      }
+      ```
