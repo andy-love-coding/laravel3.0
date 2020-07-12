@@ -5353,3 +5353,76 @@
           \App\Models\Link::observe(\App\Observers\LinkObserver::class);
       }
       ```
+### 9.3 防止数据损坏 (外键约束)
+  - 1.数据损坏
+    ```
+    这是数据损坏所致 —— 我们删除了用户，却没有删除用户发布的话题，此部分话题变成了遗留数据。话题列表中渲染到这些遗留数据时，因为不存在作者，却取作者的 avatar 头像属性，故报错。
+    ```
+  - 2.两种解决方法
+    - 代码监听器 —— 利用 Eloquent 监控器 的 deleted 事件连带删除，好处是灵活、扩展性强，不受底层数据库约束，坏处是当删除时不添加监听器，就会出现漏删；
+    - 外键约束 —— 利用 MySQL 自带的外键约束功能，好处是数据一致性强，基本上不会出现漏删，坏处是有些数据库不支持，如 SQLite。
+  - 3.添加三个外键约束
+    ```
+    1.当用户删除时，删除其发布的话题；
+    2.当用户删除时，删除其发布的回复；
+    3.当话题删除时，删除其所属的回复
+    ```
+    用迁移文件来添加表的「外键约束」
+    ```
+    php artisan make:migration add_references
+    ```
+    database/migrations/{timestamp}_add_references.php
+    ```
+    public function up()
+    {
+        Schema::table('topics', function (Blueprint $table) {
+
+            // 当 user_id 对应的 users 表数据被删除时，删除词条
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+
+        Schema::table('replies', function (Blueprint $table) {
+
+            // 当 user_id 对应的 users 表数据被删除时，删除此条数据
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+
+            // 当 topic_id 对应的 topics 表数据被删除时，删除此条数据
+            $table->foreign('topic_id')->references('id')->on('topics')->onDelete('cascade');
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('topics', function (Blueprint $table) {
+            // 移除外键约束
+            $table->dropForeign(['user_id']);
+        });
+
+        Schema::table('replies', function (Blueprint $table) {
+            $table->dropForeign(['user_id']);
+            $table->dropForeign(['topic_id']);
+        });
+
+    }
+    ```
+    运行迁移
+    ```
+    php artisan migrate
+    ```
+    数据表info如下：
+    ```
+    CREATE TABLE `replies` (
+      `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+      `topic_id` int(10) unsigned NOT NULL DEFAULT '0',
+      `user_id` bigint(20) unsigned NOT NULL DEFAULT '0',
+      `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
+      `created_at` timestamp NULL DEFAULT NULL,
+      `updated_at` timestamp NULL DEFAULT NULL,
+      PRIMARY KEY (`id`),
+      KEY `replies_topic_id_index` (`topic_id`),
+      KEY `replies_user_id_index` (`user_id`),
+      CONSTRAINT `replies_topic_id_foreign` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE,
+      CONSTRAINT `replies_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    ```
+    
