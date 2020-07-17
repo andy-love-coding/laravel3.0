@@ -4,7 +4,7 @@
   - [2.4 配置信息](https://github.com/andy-love-coding/laravel2.2#24-%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF)
   - [2.5 自定义辅助函数](https://github.com/andy-love-coding/laravel2.2#25-%E8%87%AA%E5%AE%9A%E4%B9%89%E8%BE%85%E5%8A%A9%E5%87%BD%E6%95%B0)
   - [2.6 基础布局](https://github.com/andy-love-coding/laravel2.2#26-%E5%9F%BA%E7%A1%80%E5%B8%83%E5%B1%80)
-    - 继承 Bootstrap
+    - 集成 Bootstrap
   - [2.8 安装 fontawesome 字体](https://github.com/andy-love-coding/laravel2.2#28-%E5%AE%89%E8%A3%85-fontawesome-%E5%AD%97%E4%BD%93) 
 - [3 注册登录](https://github.com/andy-love-coding/laravel2.2#3-%E6%B3%A8%E5%86%8C%E7%99%BB%E5%BD%95)
   - [3.1 用户认证脚手架](https://github.com/andy-love-coding/laravel2.2#31-%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%E8%84%9A%E6%89%8B%E6%9E%B6)
@@ -30,10 +30,86 @@
     - 1.必须登录 (auth中间件)
     - 2.只有自己能编辑自己（授权策略）
 - [5 帖子相关](https://github.com/andy-love-coding/laravel2.2#5-%E5%B8%96%E5%AD%90%E5%88%97%E8%A1%A8)
+  - [5.1 帖子分类](https://github.com/andy-love-coding/laravel2.2#51-%E5%B8%96%E5%AD%90%E5%88%86%E7%B1%BB)
+    - 用迁移文件生成分类
+  - [5.2 代码生成器（Laravel 5.x Scaffold Generator）](https://github.com/andy-love-coding/laravel2.2#52-%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90%E5%99%A8laravel-5x-scaffold-generator)
+  - [5.3 生成话题骨架](https://github.com/andy-love-coding/laravel2.2#53-%E7%94%9F%E6%88%90%E8%AF%9D%E9%A2%98%E9%AA%A8%E6%9E%B6)
+  - [5.4 填充假数据](https://github.com/andy-love-coding/laravel2.2#54-%E5%A1%AB%E5%85%85%E5%81%87%E6%95%B0%E6%8D%AEuserstopics)
+  - [5.5 话题列表页面](https://github.com/andy-love-coding/laravel2.2#55-%E8%AF%9D%E9%A2%98%E5%88%97%E8%A1%A8%E9%A1%B5%E9%9D%A2)
+    - 关联模型（一对多）
+  - [5.6 性能优化（预加载 N+1）](https://github.com/andy-love-coding/laravel2.2#56-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96-%E9%A2%84%E5%8A%A0%E8%BD%BD-n1)
+    - 安装 Debug，发布配置文件
+    - 预加载（解决 N+1 问题）
+  - [5.7 分类下的话题列表](https://github.com/andy-love-coding/laravel2.2#57-%E5%88%86%E7%B1%BB%E4%B8%8B%E7%9A%84%E8%AF%9D%E9%A2%98%E5%88%97%E8%A1%A8)
+    - 7.增加顶部导航(**laravel-active扩展包**、辅助函数)
+  - [5.8 话题列表排序](https://github.com/andy-love-coding/laravel2.2#58-%E8%AF%9D%E9%A2%98%E5%88%97%E8%A1%A8%E6%8E%92%E5%BA%8F)
+    - 查询作用域 查询参数
+  - [5.9 用户发布话题](https://github.com/andy-love-coding/laravel2.2#59-%E7%94%A8%E6%88%B7%E5%8F%91%E5%B8%83%E7%9A%84%E8%AF%9D%E9%A2%98)
 - [6 帖子的CRUD](https://github.com/andy-love-coding/laravel2.2#%E5%B8%96%E5%AD%90%E7%9A%84crud)
+  - [6.1 新建话题（观察器）](https://github.com/andy-love-coding/laravel2.2#61-%E6%96%B0%E5%BB%BA%E8%AF%9D%E9%A2%98%E8%A7%82%E5%AF%9F%E5%99%A8)
+  - [6.2 使用 Simditor 编辑器](https://github.com/andy-love-coding/laravel2.2#62-%E4%BD%BF%E7%94%A8-simditor-%E7%BC%96%E8%BE%91%E5%99%A8)
+  - [6.3 Simditor 上传图片](https://github.com/andy-love-coding/laravel2.2#63-simditor-%E4%B8%8A%E4%BC%A0%E5%9B%BE%E7%89%87)
+  - [6.4 显示帖子](https://github.com/andy-love-coding/laravel2.2#64-%E6%98%BE%E7%A4%BA%E5%B8%96%E5%AD%90)
+  - [6.5 XSS 安全漏洞（HTMLPurifier）](https://github.com/andy-love-coding/laravel2.2#65-xss-%E5%AE%89%E5%85%A8%E6%BC%8F%E6%B4%9Ehtmlpurifier)
+  - [6.6 编辑帖子](https://github.com/andy-love-coding/laravel2.2#66-%E7%BC%96%E8%BE%91%E5%B8%96%E5%AD%90)
+  - [6.7 删除帖子](https://github.com/andy-love-coding/laravel2.2#67-%E5%88%A0%E9%99%A4%E5%B8%96%E5%AD%90)
+  - [6.8 SEO 友好的 URL](https://github.com/andy-love-coding/laravel2.2#68-seo-%E5%8F%8B%E5%A5%BD%E7%9A%84-url)
+  - [6.9 翻译使用队列（job）](https://github.com/andy-love-coding/laravel2.2#69-%E7%BF%BB%E8%AF%91%E4%BD%BF%E7%94%A8%E9%98%9F%E5%88%97job)
 - [7 帖子回复](https://github.com/andy-love-coding/laravel2.2#7-%E5%B8%96%E5%AD%90%E5%9B%9E%E5%A4%8D)
+  - [7.1 生成回复假数据](https://github.com/andy-love-coding/laravel2.2#71-%E7%94%9F%E6%88%90%E5%9B%9E%E5%A4%8D%E5%81%87%E6%95%B0%E6%8D%AE)
+    - 1.生成代码（用户代码生成器）
+  - [7.2 回复列表](https://github.com/andy-love-coding/laravel2.2#72-%E5%9B%9E%E5%A4%8D%E5%88%97%E8%A1%A8)
+    - 清理「生成代码」用不到的部分
+    - 子视图
+  - [7.3 发表回复](https://github.com/andy-love-coding/laravel2.2#73-%E5%8F%91%E8%A1%A8%E5%9B%9E%E5%A4%8D)
+    - 0.根据条件加载子模板
+    - 4.表单验证
+    - 6.处理 XSS 问题（HTMLPurifier）
+  - [7.4 消息通知（database通知）](https://github.com/andy-love-coding/laravel2.2#74-%E6%B6%88%E6%81%AF%E9%80%9A%E7%9F%A5database%E9%80%9A%E7%9F%A5)
+    - 4.编写通知类
+    - 6.重写 notify() 方法
+  - [7.5 消息列表](https://github.com/andy-love-coding/laravel2.2#75-%E6%B6%88%E6%81%AF%E5%88%97%E8%A1%A8)
+    - 模型方法 markAsRead()
+  - [7.6 邮件通知](https://github.com/andy-love-coding/laravel2.2#76-%E9%82%AE%E4%BB%B6%E9%80%9A%E7%9F%A5)
+    - 1.邮件配置
+    - 3.用队列发送邮件
+  - [7.7 删除回复](https://github.com/andy-love-coding/laravel2.2#77-%E5%88%A0%E9%99%A4%E5%9B%9E%E5%A4%8D)
+    - 3.授权策略
+    - 4.删除回复时更新回复数
+    - 5.删除话题连带删除回复（模型观察器中慎用模型，避免死循环，应该用DB）
 - [8 角色权限和后台管理](https://github.com/andy-love-coding/laravel2.2#8-%E8%A7%92%E8%89%B2%E6%9D%83%E9%99%90%E5%92%8C%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86)
+  - [8.1 多角色用户权限（Laravel-permission）](https://github.com/andy-love-coding/laravel2.2#81-%E5%A4%9A%E8%A7%92%E8%89%B2%E7%94%A8%E6%88%B7%E6%9D%83%E9%99%90)
+    - 1.安装 Laravel-permission
+    - 2.Laravel-permission 的一些简单方法
+  - [8.2 站点权限部署](https://github.com/andy-love-coding/laravel2.2#82-%E7%AB%99%E7%82%B9%E6%9D%83%E9%99%90%E9%83%A8%E7%BD%B2sudo-su%E7%94%A8%E6%88%B7%E5%88%87%E6%8D%A2)
+    - 1.内容管理权限统一设置 before()
+    - 2.安装用户切换工具 sudo-su
+    - 3.Horizon 访问权限
+  - [8.3 管理后台-初始化](https://github.com/andy-love-coding/laravel2.2#83-%E7%94%A8%E6%88%B7%E5%90%8E%E5%8F%B0-%E5%88%9D%E5%A7%8B%E5%8C%96laravel-administrator)
+    - 1.安装 Laravel Administrator
+    - 3.配置简介 config/administrator.php
+  - [8.4 管理后台-用户](https://github.com/andy-love-coding/laravel2.2#84-%E7%94%A8%E6%88%B7%E5%90%8E%E5%8F%B0-%E7%94%A8%E6%88%B7)
+    - 后台修改密码 (Eloquent 模型修改器)
+  - [8.5 管理后台-角色权限](https://github.com/andy-love-coding/laravel2.2#85-%E7%AE%A1%E7%90%86%E5%90%8E%E5%8F%B0-%E8%A7%92%E8%89%B2%E6%9D%83%E9%99%90)
+  - [8.6 管理后台-内容](https://github.com/andy-love-coding/laravel2.2#86-%E7%AE%A1%E7%90%86%E5%90%8E%E5%8F%B0-%E5%86%85%E5%AE%B9)
+  - [8.7 后台管理-站点配置](https://github.com/andy-love-coding/laravel2.2#87-%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86-%E7%AB%99%E7%82%B9%E9%85%8D%E7%BD%AE)
+    - 2.新增配置信息（清除缓存 \Artisan::call('cache:clear');）
+    - 3.使用配置信息 setting()
+  - [8.8 后台权限范围](https://github.com/andy-love-coding/laravel2.2#88-%E5%90%8E%E5%8F%B0%E8%8C%83%E5%9B%B4%E6%9D%83%E9%99%90)
+    - 1.Denied 页面
+    - 2.后台部分可见（解决无限302跳转死循环问题）
 - [9 杂项](https://github.com/andy-love-coding/laravel2.2#9-%E6%9D%82%E9%A1%B9)
+  - [9.1 边栏活跃用户](https://github.com/andy-love-coding/laravel2.2#91-%E8%BE%B9%E6%A0%8F%E6%B4%BB%E8%B7%83%E7%94%A8%E6%88%B7)
+    - 1.活跃用户算法 Triat (**使用缓存**)
+    - 2.新建 Artisan 命令（make:command）
+  - [9.2 边栏资源推荐](https://github.com/andy-love-coding/laravel2.2#92-%E8%BE%B9%E6%A0%8F%E8%B5%84%E6%BA%90%E6%8E%A8%E8%8D%90observer)
+    - 4.2 增加模型(Link)方法 getAllCached() ，方法中使用了缓存 Cache::remmenber();
+    - 5.用模型观察器（Observer）自动更新缓存 Cache::forget($link->cache_key);
+  - [9.3 级联删除（外键约束）](https://github.com/andy-love-coding/laravel2.2#93-%E7%BA%A7%E8%81%94%E5%88%A0%E9%99%A4-%E5%A4%96%E9%94%AE%E7%BA%A6%E6%9D%9F)
+    - 外键约束，级联删除（连带删除）
+  - [9.4 用户最后活跃时间（中间件）](https://github.com/andy-love-coding/laravel2.2#94-%E7%94%A8%E6%88%B7%E6%9C%80%E5%90%8E%E6%B4%BB%E8%B7%83%E6%97%B6%E9%97%B4-%E4%B8%AD%E9%97%B4%E4%BB%B6)
+  - [9.5 首页](https://github.com/andy-love-coding/laravel2.2#95-%E9%A6%96%E9%A1%B5)
+  - [9.6 用户默认头像（模型监控器）](https://github.com/andy-love-coding/laravel2.2#96-%E7%94%A8%E6%88%B7%E9%BB%98%E8%AE%A4%E5%A4%B4%E5%83%8F-%E6%A8%A1%E5%9E%8B%E7%9B%91%E6%8E%A7%E5%99%A8)
 ## 2 [舞台布置](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 2.3 创建应用
   - 1.composer 加速
@@ -1372,7 +1448,7 @@
       }
       ```
 ## 5 [帖子列表](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 5.1 帖子分类
+### 5.1 [帖子分类](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.创建分类「模型」和「迁移文件」
     ```
     php artisan make:model Models/Category -m
@@ -1461,7 +1537,8 @@
       ```
       php artisan migrate
       ```
-### 5.2 [代码生成器(Laravel 5.x Scaffold Generator)](https://learnku.com/courses/laravel-intermediate-training/6.x/code-generator/5559)
+### 5.2 [代码生成器(Laravel 5.x Scaffold Generator)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
+  - [代码生成器(Laravel 5.x Scaffold Generator)](https://learnku.com/courses/laravel-intermediate-training/6.x/code-generator/5559)
   - 安装
     ```
     composer require "summerblue/generator:6.*" --dev
@@ -1489,7 +1566,8 @@
       git add -A                   // 添加所有 (将新文件 从 工作区 → 暂存区)
       git checkout -f              // 放弃本地修改，强制检出代码（将修改内容，包括新老文件，从 暂存区 → 工作区）
       ```
-### [5.3 生成话题骨架](https://learnku.com/courses/laravel-intermediate-training/6.x/generate-topic/5560)
+### 5.3 [生成话题骨架](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
+  - [生成话题骨架](https://learnku.com/courses/laravel-intermediate-training/6.x/generate-topic/5560)
   - 用代码生成器 生成话题骨架
     ```
     php artisan make:scaffold Topic --schema="title:string:index,body:text,user_id:bigInteger:unsigned:index,category_id:integer:unsigned:index,reply_count:integer:unsigned:default(0),view_count:integer:unsigned:default(0),last_reply_user_id:integer:unsigned:default(0),order:integer:unsigned:default(0),excerpt:text:nullable,slug:string:nullable"
@@ -1506,7 +1584,7 @@
     | `order`              | 可用来做排序使用         | 整数（int）      | 不需要           | `default(0)`               |
     | `excerpt`            | 文章摘要，SEO 优化时使用 | 文本（text）     | 不需要           | `nullable()`               |
     | `slug`               | SEO 友好的 URI           | 字符串（String） | 不需要           | `nullable()`               |
-### 5.4 填充假数据(users、topics)
+### 5.4 [填充假数据(users、topics)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.填充用户假数据
     - 用户模型工厂 database/factories/UserFactory.php
       ```
@@ -1655,7 +1733,7 @@
       ```
       php artisan migrate:refresh --seed
       ```
-### 5.5 话题列表页面
+### 5.5 [话题列表页面](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 「话题模型』关联「用户模型」和「分类模型」 app/Models/Topic.php
     ```
     public function category()
@@ -1812,7 +1890,7 @@
       margin-bottom: 100px;
     }
     ```
-### 5.6 性能优化 (预加载 N+1)
+### 5.6 [性能优化 (预加载 N+1)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 安装 Debugbar（[版本号 ~ ^](https://jochen-z.com/articles/30/differences-between-the-composer-version-range-symbols-and)）
     ```
     composer require "barryvdh/laravel-debugbar:~3.2" --dev
@@ -1831,7 +1909,6 @@
       - `插入号 ^` 表示「从第二位数字递增」
     - `插入号 ^` 的特殊情况
       - 对于 `pre-1.0` ，它还考虑到安全性，会将 `^0.3` 视为 `0.3.0 <= 版本号 < 0.4.0`
-
   - 发布配置文件
     ```
     php artisan vendor:publish --provider="Barryvdh\Debugbar\ServiceProvider"
@@ -1847,7 +1924,7 @@
     ```
     $topics = Topic::with('user', 'category')->paginate();
     ```
-### 5.7 分类下的话题列表
+### 5.7 [分类下的话题列表](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.路由
     ```
     Route::resource('categories', 'CategoriesController', ['only' => ['show']]);
@@ -1938,7 +2015,7 @@
         return active_class((if_route('categories.show') && if_route_param('category', $category_id)));
       }
       ```
-### 5.8 话题列表排序
+### 5.8 [话题列表排序](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.排序的思路
     - 我们可以通过 URI 传参 order 给控制器，控制器根据此参数来决定数据的读取逻辑。因为『分类下的话题列表』也会用到排序，并且是在不同的控制器中，所以在此处为了复用性考虑，我们将会把排序逻辑代码放置于 Topic 数据模型中。作为一个合格的程序员，编码时需时刻注意代码复用性。
     - 接下来的步骤是：
@@ -2028,7 +2105,7 @@
     </ul>
     ```
     - 通过 URL 中的 order 参数，先判断 active css类名是否该点亮；再通控制器调用`动态作用域` 接收 `order` 参数实现排序
-### 5.9 用户发布的话题
+### 5.9 [用户发布的话题](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改导航栏，新增个人中心的链接，并为下拉列表增加图标 resources/views/layouts/_header.blade.php
     ```
     <div class="dropdown-menu" aria-labelledby="navbarDropdown">
@@ -2103,7 +2180,7 @@
       @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
       ```   
 ## 6 [帖子的CRUD](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 6.1 新建话题（观察器）
+### 6.1 [新建话题（观察器）](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.新增入口 
     - resources/views/layouts/_header.blade.php
       ```
@@ -2283,7 +2360,7 @@
         ];
     }
     ```
-### 6.2 使用 Simditor 编辑器
+### 6.2 [使用 Simditor 编辑器](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.下载 [Simditor](https://simditor.tower.im/)
   - 2.集成到项目中
     - 新建一下两个文件夹
@@ -2350,7 +2427,7 @@
         </script>
       @stop
       ```
-### 6.3 Simditor 上传图片
+### 6.3 [Simditor 上传图片](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 0.图片上传思路
     - 「Simditor编辑器」发起图片上传请求，「服务器」处理完请求后，返回一个 json 数据 $response 给「Simditor编辑器」
     - 图片上传的时机是：选择完图片，或者图片粘贴到编辑器后，就离开上传图片，其实是在点击”保存“之前就上传好了图片。
@@ -2430,7 +2507,7 @@
     *
     !.gitignore
     ```
-### 6.4 显示帖子
+### 6.4 [显示帖子](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改模板 resources/views/topics/show.blade.php
     ```
     @extends('layouts.app')
@@ -2522,7 +2599,7 @@
     ```
     - 由于 `topic_body` 样式内容太多，所以将其放置于另一个文件中：`resources/sass/_topic_body.scss`
       - 注意，在 `resources/sass/app.scss` 中引用时 `@import "topic_body";` 没有前缀 `_`
-### 6.5 XSS 安全漏洞(HTMLPurifier)
+### 6.5 [XSS 安全漏洞(HTMLPurifier)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - [XSS 安全漏洞](https://learnku.com/courses/laravel-intermediate-training/6.x/safety-problem/5572)
     - XSS 也称跨站脚本攻击 (Cross Site Scripting)，恶意攻击者往 Web 页面里插入恶意 JavaScript 代码，当用户浏览该页之时，嵌入其中 Web 里面的 JavaScript 代码会被执行，从而达到恶意攻击用户的目的。
     - 一种比较常见的 XSS 攻击是 Cookie 窃取。我们都知道网站是通过 Cookie 来辨别用户身份的，一旦恶意攻击者能在页面中执行 JavaScript 代码，他们即可通过 JavaScript 读取并窃取你的 Cookie，拿到你的 Cookie 以后即可伪造你的身份登录网站。
@@ -2581,7 +2658,7 @@
         }
     }
     ```
-### 6.6 编辑帖子
+### 6.6 [编辑帖子](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.控制器(传递 categories 变量) app/Http/Controllers/TopicsController.php
     ```
     public function edit(Topic $topic)
@@ -2617,7 +2694,7 @@
         return $topic->user_id == $user->id;
     }
     ```
-### 6.7 删除帖子
+### 6.7 [删除帖子](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.授权策略 (只能自己删除自己)  app/Policies/TopicPolicy.php
 
     ```
@@ -2667,7 +2744,7 @@
     </div>
     @endcan
     ```
-### 6.8 SEO 友好的 URL
+### 6.8 [SEO 友好的 URL](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.什么是 SEO 友好的 URL
     - 假如话题标题为『Slug 翻译测试』的 URL 是：
       ```
@@ -2859,7 +2936,7 @@
           return view('topics.show', compact('topic'));
       }
       ```
-### 6.9 翻译使用队列（job）
+### 6.9 [翻译使用队列（job）](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.配置队列
       - 队列驱动
         - 这些驱动包括：数据库，Beanstalkd，Amazon SQS，Redis，sync(同步模式，也就是说不使用任何队列)
@@ -2999,7 +3076,7 @@
     QUEUE_CONNECTION=sync
     ```
 ## 7 [帖子回复](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 7.1 生成回复假数据
+### 7.1 [生成回复假数据](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.代码生成 (用代码生成器)
     ```
     php artisan make:scaffold Reply --schema="topic_id:integer:unsigned:default(0):index,user_id:bigInteger:unsigned:default(0):index,content:text"
@@ -3108,7 +3185,7 @@
       ```
       php artisan migrate:refresh --seed
       ```
-### 7.2 回复列表
+### 7.2 [回复列表](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 0.清理门户
     ```
     rm -rf resources/views/replies/
@@ -3261,7 +3338,7 @@
         ```
         {!! $replies->appends(Request::except('page'))->render() !!}
         ```
-### 7.3 发表回复
+### 7.3 [发表回复](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 0.『视条件加载子模板』 resources/views/topics/show.blade.php
     ```
     {{-- 用户回复列表 --}}
@@ -3348,7 +3425,7 @@
           $reply->content = clean($reply->content, 'user_topic_body');
       }
       ```
-### 7.4 消息通知(Database通知)
+### 7.4 [消息通知(Database通知)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.准备数据库
     生成迁移文件
     ```    
@@ -3475,7 +3552,7 @@
           ...
       }
       ```
-### 7.5 消息列表
+### 7.5 [消息列表](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.新建路由 routes/web.php
     ```
     Route::resource('notifications', 'NotificationsController', ['only' => ['index']]);
@@ -3602,7 +3679,7 @@
       </li>
       ```
       - $notification->data 拿到在通知类 toDatabase() 里构建的数组。
-### 7.6 邮件通知
+### 7.6 [邮件通知](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.[邮箱配置](https://learnku.com/courses/laravel-intermediate-training/6.x/mail-notification/5583#a96fb2) `.env` 中：
     ```
     MAIL_DRIVER=smtp
@@ -3652,7 +3729,7 @@
         ```
         QUEUE_CONNECTION=sync
         ```
-### 7.7 删除回复
+### 7.7 [删除回复](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.删除按钮 resources/views/topics/_reply_list.blade.php
     ```
     {{-- 回复删除按钮 --}}
@@ -3728,7 +3805,7 @@
     }
     ```
 ## 8 [角色权限和后台管理](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 8.1 多角色用户权限
+### 8.1 [多角色用户权限](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.安装 [Laravel-permission](https://github.com/spatie/laravel-permission) 扩展包
     ```
     composer require "spatie/laravel-permission:~3.0"
@@ -3843,7 +3920,7 @@
     $user->givePermissionTo('manage_contents');
     $user->getDirectPermissions()
     ```
-### 8.2 站点权限部署(sudo-su用户切换)
+### 8.2 [站点权限部署(sudo-su用户切换)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.内容管理权限 app/Policies/Policy.php
     ```
     public function before($user, $ability)
@@ -3912,7 +3989,7 @@
     }
     ```
     测试一下，一般用户访问会返回 403 报错页面，只有当我们使用 ID 为 1 的 Summer 用户访问时，才能顺利显示页面：
-### 8.3 用户后台-初始化（Laravel Administrator）
+### 8.3 [用户后台-初始化（Laravel Administrator）](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.安装 [Laravel Administrator](https://learnku.com/courses/laravel-intermediate-training/6.x/admin-dashboard/5588)
     ```
     composer require "summerblue/administrator:6.*"
@@ -4029,7 +4106,7 @@
         个人中心
       </a>
     ```
-### 8.4 用户后台-用户
+### 8.4 [用户后台-用户](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.用户模型配置users : config/administrator/users.php
     ```
     <?php
@@ -4167,7 +4244,7 @@
         $this->attributes['avatar'] = $path;
     }
     ```
-### 8.5 管理后台-角色权限
+### 8.5 [管理后台-角色权限](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改菜单 config/administrator.php
     ```
     'menu' => [
@@ -4324,7 +4401,7 @@
         ],
     ];
     ```
-### 8.6 管理后台-内容
+### 8.6 [管理后台-内容](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改 menu 选项，新增内容管理子菜单 config/administrator.php
     ```
     'menu' => [
@@ -4647,7 +4724,7 @@
         ],
     ];
     ```
-### 8.7 后台管理-站点配置
+### 8.7 [后台管理-站点配置](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.新增『站点管理』子菜单 config/administrator.php
     ```
     'menu' => [
@@ -4780,7 +4857,7 @@
 
       <!-- Styles -->
       ```
-### 8.8 后台范围权限
+### 8.8 [后台范围权限](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - Denied 页面
     - 新建路由 routes/web.php
       ```
@@ -4852,7 +4929,7 @@
       'home_page' => 'topics',
       ```
 ## 9 [杂项](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 9.1 边栏活跃用户
+### 9.1 [边栏活跃用户](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.活跃用户算法 Trait
     - 系统 每一个小时 计算一次，统计 最近 7 天 所有用户发的 帖子数 和 评论数，用户每发一个帖子则得 4 分，每发一个回复得 1 分，计算出所有人的『得分』后再倒序，排名前 6 的用户将会显示在「活跃用户」列表里
     - 算法代码 app/Models/Traits/ActiveUserHelper.php
@@ -5106,11 +5183,11 @@
         ```
         $schedule->command('larabbs:calculate-active-user')->hourly();
       ```
-  - 6.缓存效果示例
+  - 6.清空缓存，可以看到没有缓存时，页面需要请求 18 条 SQL ，有了缓存只需要 5 条：
     ```
     php artisan cache:clear
     ```
-### 9.2 边栏资源推荐（Observer）
+### 9.2 [边栏资源推荐（Observer）](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.生成数据模型
     ```
     php artisan make:model Models/Link -m
@@ -5389,7 +5466,7 @@
           \App\Models\Link::observe(\App\Observers\LinkObserver::class);
       }
       ```
-### 9.3 级联删除 (外键约束)
+### 9.3 [级联删除 (外键约束)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.数据损坏
     ```
     这是数据损坏所致 —— 我们删除了用户，却没有删除用户发布的话题，此部分话题变成了遗留数据。话题列表中渲染到这些遗留数据时，因为不存在作者，却取作者的 avatar 头像属性，故报错。
@@ -5461,7 +5538,7 @@
       CONSTRAINT `replies_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
     ) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ```
-### 9.4 用户最后活跃时间 (中间件)
+### 9.4 [用户最后活跃时间 (中间件)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - [中间件介绍](https://learnku.com/courses/laravel-intermediate-training/6.x/user-last-logon-time/5598#5c350f)
     - Laravel 的中间件从执行时机上分『前置中间件』和『后置中间件』，前置中间件是应用初始化完成以后立刻执行，此时控制器路由还未分配、控制器还未执行、视图还未渲染。后置中间件是即将离开应用的响应，此时控制器已将渲染好的视图返回，我们可以在后置中间件里修改响应。两者的区别在于书写方式的不同：
     - 前置中间件：
@@ -5911,7 +5988,7 @@
     <h5><strong>最后活跃</strong></h5>
     <p title="{{  $user->last_actived_at }}">{{ $user->last_actived_at->diffForHumans() }}</p>
     ```
-### 9.5 首页
+### 9.5 [首页](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 修改首页路由 routes/web.php
     ```
     Route::get('/', 'PagesController@root')->name('root');
@@ -5932,7 +6009,7 @@
     /* Topic Index Page */
     .topics-index-page, .categories-show-page, .root-page { }
     ```
-### 9.6 用户默认头像 (模型监控器)
+### 9.6 [用户默认头像 (模型监控器)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 目前通过我们的站点注册页面加入的用户，默认是没有头像的：
     app/Observers/UserObserver.php
     ```
