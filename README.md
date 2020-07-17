@@ -1,3 +1,12 @@
+## 目录
+[2 舞台布置](https://github.com/andy-love-coding/laravel2.2#2-%E8%88%9E%E5%8F%B0%E5%B8%83%E7%BD%AE)
+[3 注册登录](https://github.com/andy-love-coding/laravel2.2#3-%E6%B3%A8%E5%86%8C%E7%99%BB%E5%BD%95)
+[4 用户相关](https://github.com/andy-love-coding/laravel2.2#4-%E7%94%A8%E6%88%B7%E7%9B%B8%E5%85%B3)
+[5 帖子相关](https://github.com/andy-love-coding/laravel2.2#5-%E5%B8%96%E5%AD%90%E5%88%97%E8%A1%A8)
+[6 帖子的CRUD](https://github.com/andy-love-coding/laravel2.2#%E5%B8%96%E5%AD%90%E7%9A%84crud)
+[7 帖子回复](https://github.com/andy-love-coding/laravel2.2#7-%E5%B8%96%E5%AD%90%E5%9B%9E%E5%A4%8D)
+[8 角色权限和后台管理](https://github.com/andy-love-coding/laravel2.2#8-%E8%A7%92%E8%89%B2%E6%9D%83%E9%99%90%E5%92%8C%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86)
+[9 杂项](https://github.com/andy-love-coding/laravel2.2#9-%E6%9D%82%E9%A1%B9)
 ## 2 舞台布置
 ### 2.3 创建应用
   - 1.composer 加速
@@ -2066,7 +2075,7 @@
       ```
       @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
       ```   
-## 帖子的CRUD
+## 6 帖子的CRUD
 ### 6.1 新建话题（观察器）
   - 1.新增入口 
     - resources/views/layouts/_header.blade.php
