@@ -5867,11 +5867,52 @@
         }
     }
     ```
-  8.页面显示 resources/views/users/show.blade.php
+  - 8.页面显示 resources/views/users/show.blade.php
     ```
     <h5><strong>注册于</strong></h5>
     <p>{{ $user->created_at->diffForHumans() }}</p>
     <hr>
     <h5><strong>最后活跃</strong></h5>
     <p title="{{  $user->last_actived_at }}">{{ $user->last_actived_at->diffForHumans() }}</p>
+    ```
+### 9.5 首页
+  - 修改首页路由 routes/web.php
+    ```
+    Route::get('/', 'PagesController@root')->name('root');
+    ```
+    改为
+    ```
+    Route::get('/', 'TopicsController@index')->name('root');
+    ```
+  - 修改样式
+    样式有些问题，那是因为我们的话题列表页面是使用『路由专属样式类』区分的，新增路由样式类到原有的样式上即可。
+    resources/sass/app.scss
+    ```
+    /* Topic Index Page */
+    .topics-index-page, .categories-show-page { }
+    ```
+    修改为
+    ```
+    /* Topic Index Page */
+    .topics-index-page, .categories-show-page, .root-page { }
+    ```
+### 9.6 用户默认头像 (模型监控器)
+  - 目前通过我们的站点注册页面加入的用户，默认是没有头像的：
+    app/Observers/UserObserver.php
+    ```
+    <?php
+    namespace App\Observers;
+
+    use App\Models\User;
+
+    class UserObserver
+    {
+        public function saving(User $user)
+        {
+            // 这样写扩展性更高，只有空的时候才指定默认头像
+            if (empty($user->avatar)) {
+                $user->avatar = 'https://cdn.learnku.com/uploads/images/201710/30/1/TrJS40Ey5k.png';
+            }
+        }
+    }
     ```

@@ -1,6 +1,6 @@
 <?php
 
-Route::get('/', 'PagesController@root')->name('root');
+Route::get('/', 'TopicsController@index')->name('root');
 
 // 通过用户认证脚手架(php artisan ui:auth) 会生成 Auth::routes();
 // Auth::routes();
