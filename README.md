@@ -7,7 +7,28 @@
     - 继承 Bootstrap
   - [2.8 安装 fontawesome 字体](https://github.com/andy-love-coding/laravel2.2#28-%E5%AE%89%E8%A3%85-fontawesome-%E5%AD%97%E4%BD%93) 
 - [3 注册登录](https://github.com/andy-love-coding/laravel2.2#3-%E6%B3%A8%E5%86%8C%E7%99%BB%E5%BD%95)
+  - [3.1 用户认证脚手架](https://github.com/andy-love-coding/laravel2.2#31-%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%E8%84%9A%E6%89%8B%E6%9E%B6)
+    - 本地化(添加语言包)
+  - [3.2 用户注册](https://github.com/andy-love-coding/laravel2.2#32-%E7%94%A8%E6%88%B7%E6%B3%A8%E5%86%8C)
+  - [3.3 注册验证码](https://github.com/andy-love-coding/laravel2.2#33-%E6%B3%A8%E5%86%8C%E9%AA%8C%E8%AF%81%E7%A0%81)
+  - [3.5 邮箱认证(监听器)](https://github.com/andy-love-coding/laravel2.2#35-%E9%82%AE%E7%AE%B1%E8%AE%A4%E8%AF%81%E7%9B%91%E5%90%AC%E5%99%A8)
+  - [3.6 认证后的提示](https://github.com/andy-love-coding/laravel2.2#36-%E8%AE%A4%E8%AF%81%E5%90%8E%E7%9A%84%E6%8F%90%E7%A4%BA)
+  - [3.7 重置密码](https://github.com/andy-love-coding/laravel2.2#37-%E9%87%8D%E7%BD%AE%E5%AF%86%E7%A0%81)
 - [4 用户相关](https://github.com/andy-love-coding/laravel2.2#4-%E7%94%A8%E6%88%B7%E7%9B%B8%E5%85%B3)
+  - [4.1 个人页面](https://github.com/andy-love-coding/laravel2.2#41-%E4%B8%AA%E4%BA%BA%E9%A1%B5%E9%9D%A2)
+  - [4.2 编辑个人资料](https://github.com/andy-love-coding/laravel2.2#42-%E7%BC%96%E8%BE%91%E4%B8%AA%E4%BA%BA%E8%B5%84%E6%96%99-formrequest)
+    - 1.新增字段
+    - 4.错误消息
+  - [4.3 显示个人资料](https://github.com/andy-love-coding/laravel2.2#43-%E6%98%BE%E7%A4%BA%E4%B8%AA%E4%BA%BA%E8%B5%84%E6%96%99)
+  - [4.4 上传图像](https://github.com/andy-love-coding/laravel2.2#44-%E4%B8%8A%E4%BC%A0%E5%9B%BE%E5%83%8F)
+    - 4.工具类 ImageUploadHandler
+    - 6.git版本控制 (让某个文件夹不纳入git的版本)
+  - [4.6 图片验证(用 FormRequest表单验证 来限制图像类型和分辨率)](https://github.com/andy-love-coding/laravel2.2#46-%E5%9B%BE%E7%89%87%E9%AA%8C%E8%AF%81%E7%94%A8-formrequest%E8%A1%A8%E5%8D%95%E9%AA%8C%E8%AF%81-%E6%9D%A5%E9%99%90%E5%88%B6%E5%A4%B4%E5%83%8F%E7%B1%BB%E5%9E%8B%E5%92%8C%E5%88%86%E8%BE%A8%E7%8E%87)
+  - [4.7 裁剪图像](https://github.com/andy-love-coding/laravel2.2#47-%E8%A3%81%E5%89%AA%E5%A4%B4%E5%83%8F)
+    - 1.图像裁剪扩展包([intervention/image](https://github.com/Intervention/image))
+  - [4.8 授权访问](https://github.com/andy-love-coding/laravel2.2#48-%E6%8E%88%E6%9D%83%E8%AE%BF%E9%97%AE)
+    - 1.必须登录 (auth中间件)
+    - 2.只有自己能编辑自己（授权策略）
 - [5 帖子相关](https://github.com/andy-love-coding/laravel2.2#5-%E5%B8%96%E5%AD%90%E5%88%97%E8%A1%A8)
 - [6 帖子的CRUD](https://github.com/andy-love-coding/laravel2.2#%E5%B8%96%E5%AD%90%E7%9A%84crud)
 - [7 帖子回复](https://github.com/andy-love-coding/laravel2.2#7-%E5%B8%96%E5%AD%90%E5%9B%9E%E5%A4%8D)
@@ -351,7 +372,7 @@
     @import '~@fortawesome/fontawesome-free/scss/brands';
     ```
 ## 3 [注册登录](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
-### 3.1 用户认证脚手架
+### 3.1 [用户认证脚手架](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.用户认证脚手架
     ```
     php artisan ui:auth
@@ -423,7 +444,7 @@
       php artisan lang:publish zh-CN
       ```
       发布后的语言文件存放于 resources/lang/zh-CN 文件夹。
-### 3.2 用户注册
+### 3.2 [用户注册]((https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95))
   - 执行迁移
     ```
     php artisan migrate
@@ -462,7 +483,7 @@
       @endguest
     </ul>
     ```
-### 3.3 注册验证码
+### 3.3 [注册验证码](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.安装验证码 [captcha](https://github.com/mewebstudio/captcha)
     ```
     composer require "mews/captcha:~3.0"
@@ -515,7 +536,7 @@
           ]);
       }
       ```
-### 3.5 邮箱认证（监听器）
+### 3.5 [邮箱认证（监听器）](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改模型位置 app/Models
     ```
     mkdir app/Models
@@ -669,7 +690,7 @@
         ...
       ]
       ```
-### 3.6 认证后的提示
+### 3.6 [认证后的提示](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.认证路由入口
     ```
     Route::get('email/verify/{id}/{hash}', 'Auth\VerificationController@verify')->name('verification.verify')
@@ -759,7 +780,7 @@
           session()->flash('success', '邮箱验证成功 ^_^');
       }
       ```    
-### 3.7 重置密码
+### 3.7 [重置密码](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.重置密码路由(已有)
     ```
     Auth::routes(['verify' => true]);
@@ -817,8 +838,8 @@
         return redirect($this->redirectPath());
     }
     ```
-## 4 用户相关
-### 4.1 个人页面
+## 4 [用户相关](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
+### 4.1 [个人页面](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 路由 routes/web.php
     ```
     Route::resource('users', 'UsersController', ['only' => ['show', 'edit', 'update']]);
@@ -875,7 +896,7 @@
     </div>
     @stop
     ```
-### 4.2 编辑个人资料 (FormRequest)
+### 4.2 [编辑个人资料 (FormRequest)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.新增字段 `avatar` `introduction`
     ```
     php artisan make:migration add_avatar_and_introduction_to_users_table --table=users
@@ -1030,7 +1051,7 @@
       </div>
       @endif
       ```
-### 4.3 显示个人资料
+### 4.3 [显示个人资料](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改视图 resources/views/users/show.blade.php
     ```
     <div class="card-body">
@@ -1049,7 +1070,7 @@
     ```
     - $fillable 属性的作用是防止用户随意修改模型数据，只有在此属性里定义的字段，才允许修改，否则更新时会被忽略。
   - 3.[Carbon](https://github.com/briannesbitt/Carbon) 是 PHP 知名的日期和时间操作扩展，Laravel 框架中使用此扩展来处理时间、日期相关的操作。diffForHumans 是 Carbon 对象提供的方法，提供了可读性越佳的日期展示形式。
-### 4.4 上传图像
+### 4.4 [上传图像](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.修改模型(添加avatar为修改) app/Models/User.php
     ```
     protected $fillable = [
@@ -1180,7 +1201,7 @@
         {{ Auth::user()->name }}
       </a>
       ```
-### 4.6 图片验证（用 FormRequest表单验证 来限制头像类型和分辨率)
+### 4.6 [图片验证（用 FormRequest表单验证 来限制头像类型和分辨率)](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - app/Http/Requests/UserRequest.php
     ```
      public function rules()
@@ -1214,7 +1235,7 @@
     //     ];
     // }
     ```
-### 4.7 裁剪头像
+### 4.7 [裁剪头像](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 0.视网膜屏幕
     - 而我们个人空间里显示区域最大也就 208px，即使要兼容 视网膜屏幕（Retina Screen） 的话，最多也就需要 208px * 2 = 416px 
   - 1.图像裁剪扩展包([intervention/image](https://github.com/Intervention/image))
@@ -1308,7 +1329,7 @@
         }
     }
     ```
-### 4.8 授权访问
+### 4.8 [授权访问](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
   - 1.必须登录（auth中间件） app/Http/Controllers/UsersController.php
     ```
     public function __construct()
@@ -1350,7 +1371,7 @@
           ...
       }
       ```
-## 5 帖子列表
+## 5 [帖子列表](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 5.1 帖子分类
   - 1.创建分类「模型」和「迁移文件」
     ```
@@ -2081,7 +2102,7 @@
       ```
       @include('users._topics', ['topics' => $user->topics()->recent()->paginate(5)])
       ```   
-## 6 帖子的CRUD
+## 6 [帖子的CRUD](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 6.1 新建话题（观察器）
   - 1.新增入口 
     - resources/views/layouts/_header.blade.php
@@ -2977,7 +2998,7 @@
     ```
     QUEUE_CONNECTION=sync
     ```
-## 7 帖子回复
+## 7 [帖子回复](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 7.1 生成回复假数据
   - 1.代码生成 (用代码生成器)
     ```
@@ -3706,7 +3727,7 @@
         \DB::table('replies')->where('topic_id', $topic->id)->delete();
     }
     ```
-## 8 角色权限和后台管理
+## 8 [角色权限和后台管理](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 8.1 多角色用户权限
   - 1.安装 [Laravel-permission](https://github.com/spatie/laravel-permission) 扩展包
     ```
@@ -4830,7 +4851,7 @@
       // 用来作为后台主页的菜单条目，由 `use_dashboard` 选项决定，菜单指的是 `menu` 选项
       'home_page' => 'topics',
       ```
-## 9 杂项
+## 9 [杂项](https://github.com/andy-love-coding/laravel2.2#%E7%9B%AE%E5%BD%95)
 ### 9.1 边栏活跃用户
   - 1.活跃用户算法 Trait
     - 系统 每一个小时 计算一次，统计 最近 7 天 所有用户发的 帖子数 和 评论数，用户每发一个帖子则得 4 分，每发一个回复得 1 分，计算出所有人的『得分』后再倒序，排名前 6 的用户将会显示在「活跃用户」列表里
