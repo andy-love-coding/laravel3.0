@@ -361,9 +361,34 @@
     - php artisan ui bootstrap
     - npm config set registry=https://registry.npm.taobao.org
     - yarn config set registry 'https://registry.npm.taobao.org'
+    - 修复漏洞：Bump lodash from 4.17.15 to 4.17.19  
+      package.json
+      ```
+      "devDependencies": {
+          "axios": "^0.19",
+          "bootstrap": "^4.0.0",
+          "cross-env": "^7.0",
+          "jquery": "^3.2",
+          "laravel-mix": "^5.0.1",
+          "lodash": "^4.17.19",
+          "popper.js": "^1.12",
+          "resolve-url-loader": "^3.1.0",
+          "sass": "^1.15.2",
+          "sass-loader": "^8.0.0"
+      }
+      ```
     - yarn install --no-bin-links
-    - yarn add cross-env@6.0.3 (7.0.2版本需要更高的node版本匹配，所以用下低版本的cross-env)
-    - npm run dev
+    - yarn add vue-template-compiler --dev --production=false --no-bin-links
+      - 如果没有先安装 vue-template-compiler 而直是直接执行 npm run dev 编译命令，那么会出现如下情况
+        ```
+        Additional dependencies must be installed. This will only take a moment. // 依然会要求安装 vue-template-compiler
+        ERROR  Failed to compile with 1 errors  // 并且会一个错误，所以为了避免这个报错，还是先安装一下 vue-template-compiler 吧
+        error  in ./resources/js/app.js
+        Module build failed (from ./node_modules/babel-loader/lib/index.js):
+        Error: Cannot find module '/home/vagrant/Code/laravel1.7/node_modules/schema-utils/src/index.js'. Please verify that the package.json has a valid "main" entry
+        ```
+    - yarn add cross-env // 先安装一下 cross-env 否则编译时报错提示：not found
+    - npm run dev // 最后执行编译命令
   - 9.优化首页样式
     ```
     // Variables
