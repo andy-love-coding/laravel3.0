@@ -192,3 +192,160 @@
   $ git add .
   $ git commit -m '2.7 API 基础配置'
   ```
+## 手机注册
+### 3.1 手机注册流程讲解
+  - 1.[手机注册流程讲解](https://learnku.com/courses/laravel-advance-training/6.x/explanation-of-mobile-registration-process/5701)
+### 3.2 短信提供商
+- 1.服务商注册 [阿里云](https://www.aliyun.com/product/sms?spm=5176.10695662.1128094.1.2a6b4beefNNW54&aly_as=hYtZKQhL)
+
+  - 选择：短信服务 》国内消息 
+    - 然后： 》签名管理 》添加签名
+    - 然后： 》模板管理 》添加模板
+- 2.安装 easy-sms
+  - [easy-sms](https://github.com/overtrue/easy-sms) 安正超写的一个短信发送组件
+  - 安装 easy-sms
+    ```
+    $ composer require "overtrue/easy-sms"
+    ```
+- 3.封装 ServiceProvider
+  - 由于 easy-sms 组件还没有 Laravel 的 ServiceProvider，为了方便使用，我们可以自己封装一下。
+  - 3.1 首先在 config 目录中增加 easysms.php 文件
+    ```
+    $ touch config/easysms.php
+    ```
+    config/easysms.php
+    ```
+    <?php
+
+    return [
+        // HTTP 请求的超时时间（秒）
+        'timeout' => 10.0,
+
+        // 默认发送配置
+        'default' => [
+            // 网关调用策略，默认：顺序调用
+            'strategy' => \Overtrue\EasySms\Strategies\OrderStrategy::class,
+
+            // 默认可用的发送网关
+            'gateways' => [
+                'aliyun',
+            ],
+        ],
+        // 可用的网关配置
+        'gateways' => [
+            'errorlog' => [
+                'file' => '/tmp/easy-sms.log',
+            ],
+            'aliyun' => [
+                'access_key_id' => env('SMS_ALIYUN_ACCESS_KEY_ID'),
+                'access_key_secret' => env('SMS_ALIYUN_ACCESS_KEY_SECRET'),
+                'sign_name' => env('SMS_ALIYUN_SIGN_NAME'),
+            ],
+        ],
+    ];
+    ```
+  - 3.2 然后创建一个 ServiceProvider
+    ```
+    $ php artisan make:provider EasySmsServiceProvider
+    ```
+    app/providers/EasySmsServiceProvider.php
+    ```
+    <?php
+
+    namespace App\Providers;
+
+    use Overtrue\EasySms\EasySms;
+    use Illuminate\Support\ServiceProvider;
+
+    class EasySmsServiceProvider extends ServiceProvider
+    {
+        public function boot()
+        {
+            //
+        }
+
+        public function register()
+        {
+            $this->app->singleton(EasySms::class, function ($app) {
+                return new EasySms(config('easysms'));
+            });
+
+            $this->app->alias(EasySms::class, 'easysms');
+        }
+    }
+    ```
+  - 3.3 最后 打开 `config/app.php` 在 providers 中增加 `App\Providers\EasySmsServiceProvider::class,`
+    ```
+    'providers' => [
+        ...
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
+
+        App\Providers\EasySmsServiceProvider::class,
+    ],
+    ```
+- 4.修改环境配置
+  在 `.env` 中填入阿里云的 AccessKey
+  ```
+  # aliyun 短信
+  SMS_ALIYUN_ACCESS_KEY_ID=LTAI4FejA****
+  SMS_ALIYUN_ACCESS_KEY_SECRET=nhYplbr2kpulOU****
+  SMS_ALIYUN_SIGN_NAME=ABC商城
+  ```
+  - 注意：此处的签名 SMS_ALIYUN_SIGN_NAME 必须与阿里云的短信签名完全一致。
+  - 同时在 `.env.example` 中也加入配置示例，提交到版本库，方便以后部署
+    ```
+    # aliyun 短信
+    SMS_ALIYUN_ACCESS_KEY_ID=
+    SMS_ALIYUN_ACCESS_KEY_SECRET=
+    SMS_ALIYUN_SIGN_NAME=
+    ```
+- 5.短信发送测试
+  - 5.1 在阿里云短信后台，获取短信模板的 code
+  - 5.2 进入 tinker 测试发送短信
+    ```
+    $ php artisan tinker
+    ```
+    输入
+    ```
+    $sms = app('easysms');
+    try {
+        $sms->send(13212345678, [
+            'template' => 'SMS_174806102',
+            'data' => [
+                'code' => 1234
+            ],
+        ]);
+    } catch (\Overtrue\EasySms\Exceptions\NoGatewayAvailableException $exception) {
+        $message = $exception->getException('aliyun')->getMessage();
+        dd($message);
+    }
+    ```
+    结果如下：
+    ```
+    vagrant@homestead:~/Code/laravel3.0$ php artisan tinker
+    Psy Shell v0.10.4 (PHP 7.3.9-1+ubuntu18.04.1+deb.sury.org+1 — cli) by Justin Hileman
+    >>> $sms = app('easysms');
+    => Overtrue\EasySms\EasySms {#4288}
+    >>> try {
+    ...     $sms->send(18502181234, [
+    ...          'template' => 'SMS_21435001',
+    ...          'data' => [
+    ...              'code' => 1234
+    ...          ],
+    ...     ]);
+    ... } catch (\Overtrue\EasySms\Exceptions\NoGatewayAvailableException $exception) {
+    ...     $message = $exception->getException('aliyun')->getMessage();
+    ...     dd($message);
+    ... }
+    "签名不合法(不存在或被拉黑)"
+    ```
+  - 5.3 如遇短信发送超时报错，修改 config/easysms.php 中的 timeout 即可
+    ```
+    如果你遇到报错 cURL error 28: Resolving timed out after 5519 milliseconds (see http://curl.haxx.se/libcurl/c/libcurl-errors.html) 可以将配置中的超时时间增加，修改 config/easysms.php 中的 timeout 即可。
+    ```
+- 6.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '3.2 短信调试'
+  ```
