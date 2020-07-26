@@ -1000,3 +1000,27 @@
   $ git add -A
   $ git commit -m "3.6 图片验证码" 
   ```
+## 4 第三方登录
+### 4.1 微信登录流程讲解
+- [OAutho 2.0 流程分析](https://learnku.com/courses/laravel-advance-training/6.x/process-explanation/5708)
+### 4.2 微信开发者账号申请
+- 1.[申请微信公众平台测试账号](https://learnku.com/courses/laravel-advance-training/6.x/wechat-developer-account-application/5709#b883b5)
+- 2.测试 OAuth 流程 [微信网页授权](https://developers.weixin.qq.com/doc/offiaccount/OA_Web_Apps/Wechat_webpage_authorization.html)  
+  登录在微信开发者工具
+  - 2.1 请求授权页面，获取code （在微信开发者工具中）
+    ```
+    https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf0e81c3bee622d60&redirect_uri=http%3A%2F%2Fnba.bluewebgame.com%2Foauth_response.php&response_type=code&scope=snsapi_userinfo&state=STATE#wechat_redirect
+    ```
+  - 2.2 通过code换取网页授权access_token （在postman中)
+    ```
+    https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
+    ```
+  - 2.3 拉取用户信息(需scope为 snsapi_userinfo)（在postman中)
+    ```
+    https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
+    ```
+- 3.Git 版本控制
+```
+$ git add .
+$ git commit -m '4.1 4.2 微信登录开发前的准备及测试'
+```
