@@ -349,3 +349,261 @@
   $ git add -A
   $ git commit -m '3.2 短信调试'
   ```
+### 3.3 手机注册验证码
+- 1.用户表添加手机字段
+  ```
+  $ php artisan make:migration add_phone_to_users_table --table=users
+  ```
+  database/migrations/{your_date}_add_phone_to_users_table.php
+  ```
+  public function up()
+  {
+      Schema::table('users', function (Blueprint $table) {
+          $table->string('phone')->nullable()->unique()->after('name');
+          $table->string('email')->nullable()->change();
+      });
+  }
+
+  public function down()
+  {
+      Schema::table('users', function (Blueprint $table) {
+          $table->dropColumn('phone');
+          $table->string('email')->nullable(false)->change();
+      });
+  }
+  ```
+  - 修改数据表字段属性，需要 `doctrine/dbal` 组件，我们先安装它：
+    ```
+    $ composer require doctrine/dbal
+    ```
+  - 然后，执行迁移，更新数据表
+    ```
+    $ php artisan migrate
+    ```
+- 2.新建控制器基类  
+  创建一个基础 Controller，此类作为所有 API 请求控制器的『基类』
+  ```
+  $ php artisan make:controller Api/Controller
+  ```
+  app/Http/Controllers/Api/Controller.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use Illuminate\Http\Request;
+  use App\Http\Controllers\Controller as BaseController;
+
+  class Controller extends BaseController
+  {
+      //
+  }
+  ```
+- 3.构建短信验证控制器
+  ```
+  $ php artisan make:controller Api/VerificationCodesController
+  ```
+  app/Http/Controllers/Api/VerificationCodesController.php
+  ``` 
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use Illuminate\Http\Request;
+
+  class VerificationCodesController extends Controller
+  {
+      public function store()
+      {
+          return response()->json(['test_message' => 'store verification code']);
+      }
+  }
+  ```
+- 4.新增路由 routes/api.php
+  ```
+  <?php
+
+  use Illuminate\Http\Request;
+
+  Route::prefix('v1')->namespace('Api')->name('api.v1.')->group(function () {
+      // 短信验证码
+      Route::post('verificationCodes', 'VerificationCodesController@store')
+          ->name('verificationCodes.store');
+  });
+  ```
+  - 控制器（如：VerificationCodesController）放在了 Api 目录中， 所以还需要调整一下统一的命名空间，使用 namespace 方法即可。
+  - 这样所有 v1 版本的路由都会默认使用 Api 目录中的控制器，你还可以根据版本继续细分到 v1 ，v2 目录中。
+- 5.PostMan 里测试一下
+  - 测试链接：POST http://{{host}}/api/v1/verificationCodes
+    - 出现：{ "test_message": "store verification code" } 则接口正常
+- 6.创建 API 表单请求验证基类
+  ```
+  $ php artisan make:request Api/FormRequest
+  ```
+  app/Http/Requests/Api/FormRequest.php
+  ```
+  <?php
+
+  namespace App\Http\Requests\Api;
+
+  use Illuminate\Foundation\Http\FormRequest as BaseFormRequest;
+
+  class FormRequest extends BaseFormRequest
+  {
+      public function authorize()
+      {
+          return true;
+      }
+  }
+  ```
+- 7.创建验证码的表单请求验证类
+  ```
+  $ php artisan make:request Api/VerificationCodeRequest
+  ```
+  app/Http/Requests/Api/VerificationCodeRequest.php
+  ```
+  <?php
+
+  namespace App\Http\Requests\Api;
+
+  class VerificationCodeRequest extends FormRequest
+  {
+      public function rules()
+      {
+          return [
+              'phone' => [
+                  'required',
+                  'regex:/^((13[0-9])|(14[5,7])|(15[0-3,5-9])|(17[0,3,5-8])|(18[0-9])|166|198|199)\d{8}$/',
+                  'unique:users'
+              ]
+          ];
+      }
+  }
+  ```
+- 8.增加短信模板配置  
+  短信模板的 code 是一个变量，应该增加一个对应的配置，这样方便更换不同的模板。  
+  config/easysms.php
+  ```
+  'gateways' => [
+      'errorlog' => [
+          'file' => '/tmp/easy-sms.log',
+      ],
+      'aliyun' => [
+          'access_key_id' => env('SMS_ALIYUN_ACCESS_KEY_ID'),
+          'access_key_secret' => env('SMS_ALIYUN_ACCESS_KEY_SECRET'),
+          'sign_name' => 'Larabbs',
+          'templates' => [
+              'register' => env('SMS_ALIYUN_TEMPLATE_REGISTER'),
+          ]
+      ],
+  ],
+  ```
+  - 然后再在 `.env` 文件中配置 SMS_ALIYUN_TEMPLATE_REGISTER
+    ```
+    SMS_ALIYUN_TEMPLATE_REGISTER=SMS_174806102
+    ```
+    同时修改 `.env.example`
+    ```
+    SMS_ALIYUN_TEMPLATE_REGISTER=
+    ```
+- 9.继续辨析控制器逻辑 app/Http/Controllers/Api/VerificationCodesController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use Illuminate\Support\Str;
+  use Illuminate\Http\Request;
+  use Overtrue\EasySms\EasySms;
+  use App\Http\Requests\Api\VerificationCodeRequest;
+
+  class VerificationCodesController extends Controller
+  {
+      public function store(VerificationCodeRequest $request, EasySms $easySms)
+      {
+          $phone = $request->phone;
+
+          // 生成4位随机数，左侧补0
+          $code = str_pad(random_int(1, 9999), 4, 0, STR_PAD_LEFT);
+
+          try {
+              $result = $easySms->send($phone, [
+                  'template' => config('easysms.gateways.aliyun.templates.register'),
+                  'data' => [
+                      'code' => $code
+                  ],
+              ]);
+          } catch (\Overtrue\EasySms\Exceptions\NoGatewayAvailableException $exception) {
+              $message = $exception->getException('aliyun')->getMessage();
+              abort(500, $message ?: '短信发送异常');
+          }
+
+          $key = 'verificationCode_'.Str::random(15);
+          $expiredAt = now()->addMinutes(5);
+          // 缓存验证码 5 分钟过期。
+          \Cache::put($key, ['phone' => $phone, 'code' => $code], $expiredAt);
+
+          return response()->json([
+              'key' => $key,
+              'expired_at' => $expiredAt->toDateTimeString(),
+          ])->setStatusCode(201);
+      }
+  }
+  ```
+  > 做接口的思路与我们做网页应用不同，网站中处理验证码，通常是存入 session，注册的时候验证用户输入的验证码与 session 中的验证码是否相同。但是接口是无状态，相互独立的，处理这种相互关联，有先后调用顺序的接口时，常常是第一个接口返回一个随机的 key，利用这个 key 去调用第二个接口。
+- 9.测试发送手机验证码
+  - 测试链接：POST http://{{host}}/api/v1/verificationCodes
+    请求体 (form-data)
+    ```
+    body: [
+      [
+        'key' => 'phone',
+        'value' => '185....1234',
+      ],
+    ]
+    ```
+    - 输入错误手机号，报错：“422 Unprocessable Entity”
+      ```
+      {
+          "message": "The given data was invalid.",
+          "errors": {
+              "phone": [
+                  "电话 格式不正确。"
+              ]
+          }
+      }
+      ```
+    - 输入正确手机号，返回如下
+      ```
+      {
+          "key": "verificationCode_9OCZ9HRN8bwqt7B",
+          "expired_at": "2020-07-26 09:56:03"
+      }
+      ```
+- 10.测试环境验证码
+  ```
+  if (!app()->environment('production')) {
+      $code = '1234';
+  } else {
+      // 生成4位随机数，左侧补0
+      $code = str_pad(random_int(1, 9999), 4, 0, STR_PAD_LEFT);
+
+      try {
+          $result = $easySms->send($phone, [
+              'template' => config('easysms.gateways.aliyun.templates.register'),
+              'data' => [
+                  'code' => $code
+              ],
+          ]);
+      } catch (\Overtrue\EasySms\Exceptions\NoGatewayAvailableException $exception) {
+          $message = $exception->getException('aliyun')->getMessage();
+          abort(500, $message ?: '短信发送异常');
+      }
+  }
+  ```
+  - 除了正式环境外，其他环境，默认不真实发送短信，短信验证码默认为 1234。也可以考虑增加一个配置，控制是否真实发送短信。
+- 11.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '3.3 发送短信验证码'
+  ```
