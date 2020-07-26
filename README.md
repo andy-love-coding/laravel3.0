@@ -506,7 +506,7 @@
     ```
     SMS_ALIYUN_TEMPLATE_REGISTER=
     ```
-- 9.继续辨析控制器逻辑 app/Http/Controllers/Api/VerificationCodesController.php
+- 9.继续编辑控制器逻辑 app/Http/Controllers/Api/VerificationCodesController.php
   ```
   <?php
 
@@ -551,7 +551,7 @@
   }
   ```
   > 做接口的思路与我们做网页应用不同，网站中处理验证码，通常是存入 session，注册的时候验证用户输入的验证码与 session 中的验证码是否相同。但是接口是无状态，相互独立的，处理这种相互关联，有先后调用顺序的接口时，常常是第一个接口返回一个随机的 key，利用这个 key 去调用第二个接口。
-- 9.测试发送手机验证码
+- 10.测试发送手机验证码
   - 测试链接：POST http://{{host}}/api/v1/verificationCodes
     请求体 (form-data)
     ```
@@ -580,7 +580,7 @@
           "expired_at": "2020-07-26 09:56:03"
       }
       ```
-- 10.测试环境验证码
+- 11.测试环境验证码
   ```
   if (!app()->environment('production')) {
       $code = '1234';
@@ -602,8 +602,148 @@
   }
   ```
   - 除了正式环境外，其他环境，默认不真实发送短信，短信验证码默认为 1234。也可以考虑增加一个配置，控制是否真实发送短信。
-- 11.Git 版本控制
+- 12.Git 版本控制
   ```
   $ git add -A
   $ git commit -m '3.3 发送短信验证码'
+  ```
+### 3.4 构建用户注册接口
+- 1.新增路由 routes/api.php
+  ```
+  Route::prefix('v1')->namespace('Api')->name('api.v1.')->group(function () {
+      // 短信验证码
+      Route::post('verificationCodes', 'VerificationCodesController@store')
+          ->name('verificationCodes.store');
+      // 用户注册
+      Route::post('users', 'UsersController@store')
+          ->name('users.store');
+  });
+  ```
+- 2.表单验证类
+  ```
+  $ php artisan make:request Api/UserRequest
+  ```
+  app/Http/Requests/Api/UserRequest.php
+  ```
+  <?php
+
+  namespace App\Http\Requests\Api;
+
+  class UserRequest extends FormRequest
+  {
+      public function rules()
+      {
+          return [
+              'name' => 'required|between:3,25|regex:/^[A-Za-z0-9\-\_]+$/|unique:users,name',
+              'password' => 'required|alpha_dash|min:6',
+              'verification_key' => 'required|string',
+              'verification_code' => 'required|string',
+          ];
+      }
+
+      public function attributes()
+      {
+          return [
+              'verification_key' => '短信验证码 key',
+              'verification_code' => '短信验证码',
+          ];
+      }
+  }
+  ```
+- 3.API 资源
+  - 3.1 创建一个用户资源类，这里可以再看一下文档 [API 资源《Laravel 6 中文文档》](https://learnku.com/docs/laravel/6.x/eloquent-resources/5180) ：
+    ```
+    $ php artisan make:resource UserResource
+    ```
+    使用默认生成的代码即可，暂时不用修改。
+- 4.控制器
+  ```
+  $ php artisan make:controller Api/UsersController
+  ```
+  app/Http/Controllers/Api/UsersController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use App\Models\User;
+  use Illuminate\Http\Request;
+  use App\Http\Resources\UserResource;
+  use App\Http\Requests\Api\UserRequest;
+  use Illuminate\Auth\AuthenticationException;
+
+  class UsersController extends Controller
+  {
+      public function store(UserRequest $request)
+      {
+          $verifyData = \Cache::get($request->verification_key);
+
+        if (!$verifyData) {
+            abort(403, '验证码已失效');
+          }
+
+          if (!hash_equals($verifyData['code'], $request->verification_code)) {
+              // 返回401
+              throw new AuthenticationException('验证码错误');
+          }
+
+          $user = User::create([
+              'name' => $request->name,
+              'phone' => $verifyData['phone'],
+              'password' => $request->password,
+          ]);
+
+          // 清除验证码缓存
+          \Cache::forget($request->verification_key);
+
+          return new UserResource($user);
+      }
+  }
+  ```
+  - **防止时序攻击**：hash_equals()  
+    我们比对验证码是否与缓存中一致时，使用了 hash_equals 方法。
+    ```
+    hash_equals($verifyData['code'], $request->verification_code)
+    ```
+    hash_equals 是可防止时序攻击的字符串比较，那么什么是时序攻击呢？比如这段代码我们使用
+    ```
+    $verifyData['code'] == $request->verification_code
+    ```
+    - 进行比较，那么两个字符串是从第一位开始逐一进行比较的，发现不同就立即返回 false，那么通过计算返回的速度就知道了大概是哪一位开始不同的，这样就实现了电影中经常出现的按位破解密码的场景。而使用 hash_equals 比较两个字符串，无论字符串是否相等，函数的时间消耗是恒定的，这样可以有效的防止时序攻击。
+- 5.修改 User 模型 app/Models/User.php
+  给 fillable 设置 phone
+  ```
+  protected $fillable = [
+      'name', 'phone', 'email', 'password', 'introduction', 'avatar',
+  ];
+  ```
+- 6.修改返回数据格式  
+  - 返回的数据中 User 资源数据被放在了 data 字段下面，这是默认的数据返回格式，当有数据嵌套时，数据嵌套的层数会特别多，所以我们选择去掉 data 这一层包裹
+  - app/Providers/AppServiceProvider.php
+    ```
+    use Illuminate\Http\Resources\Json\Resource;
+    ...
+      public function boot()
+      {
+          ...
+          Resource::withoutWrapping();
+      }
+    ```
+- 7.postman 测试用户注册流程
+  - 7.1 成验证码接口： POST http://{{host}}/api/v1/verificationCodes  
+    保存此接口返回的 verification_key 值，用作用户注册接口的传参
+  - 7.2 用户注册接口：POST http://{{host}}/api/v1/users  
+    body（form-data）传参：
+    ```
+    [
+      'verification_key' => 'verificationCode_YAXh5CT5ccMQNy6',
+      'verificaiton_code' => '1234',
+      'password' => '123456',
+      'name' => 'andy',
+    ]
+    ```
+  - 8.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "3.4 用户注册接口"
   ```
