@@ -742,8 +742,58 @@
       'name' => 'andy',
     ]
     ```
-  - 8.Git 版本控制
+- 8.Git 版本控制
   ```
   $ git add -A
   $ git commit -m "3.4 用户注册接口"
+  ```
+### 3.5 节流处理防止攻击
+- 1.[路由调用限流](https://learnku.com/docs/laravel/6.x/routing/5135#rate-limiting)
+- 2.增加配置
+  ```
+  $ touch config/api.php
+  ```
+  config/api.php
+  ```
+  <?php
+
+  return [
+      /*
+      * 接口频率限制
+      */
+      'rate_limits' => [
+          // 访问频率限制，次数/分钟
+          'access' =>  env('RATE_LIMITS', '60,1'),
+          // 登录相关，次数/分钟
+          'sign' =>  env('SIGN_RATE_LIMITS', '10,1'),
+      ],
+  ];
+  ```
+- 3.修改 app/Http/Kernel.php  
+  - 注释掉 `'throttle:60,1',` ，否则会使上面的限制次数减半，比如 '1,1' 会变成 '0,1'(即1分钟一次也不能访问)；'10,1' 会变成 '5,1'(即 5次/分钟)
+    ```
+
+    ```
+- 4.修改路由 routes/api.php
+  ```
+  Route::prefix('v1')->namespace('Api')->name('api.v1.')->group(function () {
+
+      Route::middleware('throttle:' . config('api.rate_limits.sign'))->group(function () {
+          // 短信验证码
+          Route::post('verificationCodes', 'VerificationCodesController@store')
+              ->name('verificationCodes.store');
+          // 用户注册
+          Route::post('users', 'UsersController@store')
+              ->name('users.store');
+      });
+
+      Route::middleware('throttle:' . config('api.rate_limits.access'))->group(function () {
+
+      });
+  });
+  ```
+- 5.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "3.5 频率限制" 
   ```
