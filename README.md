@@ -557,8 +557,7 @@
     ```
     body: [
       [
-        'key' => 'phone',
-        'value' => '185....1234',
+        'phone', => '185....1234'
       ],
     ]
     ```
@@ -772,7 +771,15 @@
 - 3.修改 app/Http/Kernel.php  
   - 注释掉 `'throttle:60,1',` ，否则会使上面的限制次数减半，比如 '1,1' 会变成 '0,1'(即1分钟一次也不能访问)；'10,1' 会变成 '5,1'(即 5次/分钟)
     ```
-
+    // API ˙中间件组，应用于 routes/api.php 路由文件，
+    // 在 RouteServiceProvider 中设定
+    'api' => [
+        // 使用别名来调用中间件
+        // 请见：https://learnku.com/docs/laravel/5.7/middleware#为路由分配中间件
+        \App\Http\Middleware\AcceptHeader::class,
+        // 'throttle:60,1',
+        'bindings',
+    ],
     ```
 - 4.修改路由 routes/api.php
   ```
@@ -796,4 +803,200 @@
   ```
   $ git add -A
   $ git commit -m "3.5 频率限制" 
+  ```
+### 3.6 图片验证码
+- 1.安装 gregwar/captcha
+  ```
+  $ composer require gregwar/captcha
+  ```
+  - 安装时报错：
+    ```
+    PHP Fatal error:  Allowed memory size of 1610612736 bytes exhausted (tried to allocate 4096 bytes)
+    ```
+  - 解决办法：
+    - 输入命令 `$ php -i |grep memory` 发现限制的内存确实是 512Mb
+      ```
+      memory_limit => 512M => 512M
+      ```
+    - 输入 $ php -i | grep php.ini 找到 php.ini 位置：
+      ```
+      Configuration File (php.ini) Path => /etc/php5/cli
+      Loaded Configuration File => /etc/php5/cli/php.ini
+      ```
+    - 用 vim 打开文件修改配置，$ sudo vim /etc/php5/cli/php.ini 按: 进入命令行模式 输入 /memory_limit，找到 memory_limit 修改配置为 memory_limit = 2048M
+- 2.新建路由 routes/api.php
+  ```
+  // 图片验证码
+    Route::post('captchas', 'CaptchasController@store')
+        ->name('captchas.store');
+  // 短信验证码
+  Route::post('verificationCodes', 'VerificationCodesController@store')
+      ->name('verificationCodes.store');
+  ```
+- 3.新建控制器和表单验证类
+  ```
+  $ php artisan make:controller Api/CaptchasController
+  $ php artisan make:request Api/CaptchaRequest
+  ```
+  app/Http/Requests/Api/CaptchaRequest.php
+  ```
+  public function rules()
+  {
+      return [
+          'phone' => [
+              'required',
+              'regex:/^((13[0-9])|(14[5,7])|(15[0-3,5-9])|(17[0,3,5-8])|(18[0-9])|166|198|199)\d{8}$/',
+              'unique:users'
+          ]
+      ];
+  }
+  ```
+  app/Http/Controllers/Api/CaptchasController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use  Illuminate\Support\Str;
+  use Illuminate\Http\Request;
+  use Gregwar\Captcha\CaptchaBuilder;
+  use App\Http\Requests\Api\CaptchaRequest;
+
+  class CaptchasController extends Controller
+  {
+      public function store(CaptchaRequest $request, CaptchaBuilder $captchaBuilder)
+      {
+          $key = 'captcha-'.Str::random(15);
+          $phone = $request->phone;
+
+          $captcha = $captchaBuilder->build();
+          $expiredAt = now()->addMinutes(2);
+          \Cache::put($key, ['phone' => $phone, 'code' => $captcha->getPhrase()], $expiredAt);
+
+          $result = [
+              'captcha_key' => $key,
+              'expired_at' => $expiredAt->toDateTimeString(),
+              'captcha_image_content' => $captcha->inline()
+          ];
+
+          return response()->json($result)->setStatusCode(201);
+      }
+  }
+  ```
+  - 增加了 CaptchaRequest 要求用户必须通过手机号调用图片验证码接口。
+  - controller 中，注入 CaptchaBuilder，通过它的 build() 方法，创建出来验证码图片
+  - 使用 getPhrase() 方法获取验证码文本，跟手机号一同存入缓存。
+  - 返回 captcha_key，过期时间以及 inline() 方法获取的 base64 图片验证码
+- 4.测试图片验证码
+  - POST http://{{host}}/api/v1/captchas
+    请求体 body (form-data)
+    ```
+    [
+      'phone' => '13212341234'
+    ]
+    ```
+    - 请求成功，复制 captcha_image_content 的值，到浏览器中打开
+- 5.集成到短信验证码接口里
+  接下来需要修改一下原来的 发送短信验证码接口，通过 captcha_key 和 captcha_code 请求该接口，修改如下：  
+  app/Http/Requests/Api/VerificationCodeRequest.php
+  ```
+  <?php
+
+  namespace App\Http\Requests\Api;
+
+  class VerificationCodeRequest extends FormRequest
+  {
+      public function rules()
+      {
+          return [
+              'captcha_key' => 'required|string',
+              'captcha_code' => 'required|string',
+          ];
+      }
+
+      public function attributes()
+      {
+          return [
+              'captcha_key' => '图片验证码 key',
+              'captcha_code' => '图片验证码',
+          ];
+      }
+  }
+  ```
+  app/Http/Controllers/Api/VerificationCodesController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use Illuminate\Support\Str;
+  use Illuminate\Http\Request;
+  use Overtrue\EasySms\EasySms;
+  use App\Http\Requests\Api\VerificationCodeRequest;
+  use Illuminate\Auth\AuthenticationException;
+
+  class VerificationCodesController extends Controller
+  {
+      public function store(VerificationCodeRequest $request, EasySms $easySms)
+      {
+          $captchaData = \Cache::get($request->captcha_key);
+
+          if (!$captchaData) {
+              abort(403, '图片验证码已失效');
+          }
+
+          if (!hash_equals($captchaData['code'], $request->captcha_code)) {
+              // 验证错误就清除缓存
+              \Cache::forget($request->captcha_key);
+              throw new AuthenticationException('验证码错误');
+          }
+
+          $phone = $captchaData['phone'];
+
+          if (!app()->environment('production')) {
+              $code = '1234';
+          } else {
+              // 生成4位随机数，左侧补0
+              $code = str_pad(random_int(1, 9999), 4, 0, STR_PAD_LEFT);
+
+              try {
+                  $result = $easySms->send($phone, [
+                      'template' => config('easysms.gateways.aliyun.templates.register'),
+                      'data' => [
+                          'code' => $code
+                      ],
+                  ]);
+              } catch (\Overtrue\EasySms\Exceptions\NoGatewayAvailableException $exception) {
+                  $message = $exception->getException('aliyun')->getMessage();
+                  abort(500, $message ?: '短信发送异常');
+              }
+          }
+
+          $key = 'verificationCode_'.Str::random(15);
+          $expiredAt = now()->addMinutes(5);
+          // 缓存验证码 5分钟过期。
+          \Cache::put($key, ['phone' => $phone, 'code' => $code], $expiredAt);
+          // 清除图片验证码缓存
+          \Cache::forget($request->captcha_key);
+
+          return response()->json([
+              'key' => $key,
+              'expired_at' => $expiredAt->toDateTimeString(),
+          ])->setStatusCode(201);
+      }
+  }
+  ```
+- 6.测试集成后的短信验证码
+  - POST http://{{host}}/api/v1/verificationCodes
+    请求体 body (form-body)
+    ```
+    [
+      'captcha_key' => 'captcha-bP39YB1QL4ejiOa',
+      'captcha_code' => '',
+    ]
+    ```
+- 7.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "3.6 图片验证码" 
   ```
