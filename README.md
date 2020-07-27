@@ -1512,3 +1512,62 @@
   $ git add -A
   $ git commit -m "4.5 登录后，下发 JWT 令牌"
   ```
+### 4.6 artisan 生成 token
+- 1.新增 command
+  ```
+   $ php artisan make:command GenerateToken
+  ```
+  app/Console/Commands/GenerateToken.php
+  ```
+  <?php
+
+  namespace App\Console\Commands;
+
+  use App\Models\User;
+  use Illuminate\Console\Command;
+
+  class GenerateToken extends Command
+  {
+      protected $signature = 'larabbs:generate-token';
+
+      protected $description = '快速为用户生成 token';
+
+      public function __construct()
+      {
+          parent::__construct();
+      }
+
+      public function handle()
+      {
+          $userId = $this->ask('输入用户 id');
+
+          $user = User::find($userId);
+
+          if (!$user) {
+              $this->error('用户不存在');
+          }
+
+          // 一年以后过期
+          $ttl = 365*24*60;
+          $this->info(auth('api')->setTTL($ttl)->login($user));
+      }
+  }
+  ```
+  - 为该用户生成一个有效期为 1 年的 token
+- 2.执行 Artisan 命令，生成 token
+  ```
+  $ php artisan larabbs:generate-token
+
+  输入用户 id:
+  > 1
+
+  eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9sYXJhdmVsMy4wLnRlc3QiLCJpYXQiOjE1OTU4NjMyNjgsImV4cCI6MTYyNzM5OTI2OCwibmJmIjoxNTk1ODYzMjY4LCJqdGkiOiJnNEtiUXlBa25zQkI2S3JSIiwic3ViIjoxLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3In0.Z0Vp2PjL4csfmXxxwRA1eLizgUhGn5gnzOBwbzz7ryo
+  ```
+- 3.PostMan 增加变量
+  - 3.1 创建一个 jwt_user1 的环境变量，填入刚才创建的 token
+  - 3.2 然后在 Authorization 那里： Type 选择 `Bearer Token`，Token 填写 `{{jwt_user1}}`。这样就可以为 Header(Authorization)添加一个键值对，即 Authorization: Bearer {{jwt_user1}}
+- 4.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "4.6 用命令生成1年期的 jwt Token"
+  ```
