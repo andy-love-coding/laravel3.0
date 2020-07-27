@@ -1087,5 +1087,171 @@
 - 4.Git 提交代码
   ```
   $ git add -A
-  $ git commit -m "add socialiteproviders"
+  $ git commit -m "4.3 add socialiteproviders"
+  ```
+### 4.4 微信登录功能开发
+- 1.为 users 表增加两个字段，weixin_openid，weixin_unionid。修改 password 字段为 nullable，因为第三方登录不需要密码。
+  ```
+  $ php artisan make:migration add_weixin_openid_to_users_table
+  ```
+  databases/migrations/< your_date >_add_weixin_openid_to_users_table.php
+  ```
+  public function up()
+  {
+      Schema::table('users', function (Blueprint $table) {
+          $table->string('weixin_openid')->unique()->nullable()->after('password');
+          $table->string('weixin_unionid')->unique()->nullable()->after('weixin_openid');
+          $table->string('password')->nullable()->change();
+      });
+  }
+
+  public function down()
+  {
+      Schema::table('users', function (Blueprint $table) {
+          $table->dropColumn('weixin_openid');
+          $table->dropColumn('weixin_unionid');
+          $table->string('password')->nullable(false)->change();
+      });
+  }
+  ```
+  执行迁移
+  ```
+  $ php artisan migrate
+  ```
+- 2.路由设计
+  - 1.为了区分用户账号密码登录和第三方登录，我们可以设计为两个接口
+    - api/authorizations —— 账号密码登录；
+    - api/socials/{social_type}/authorizations —— 第三方登录。
+  - 2.修改路由 routes/api.php
+    ```
+    // 用户注册
+    Route::post('users', 'UsersController@store')
+        ->name('users.store');
+    // 第三方登录
+    Route::post('socials/{social_type}/authorizations', 'AuthorizationsController@socialStore')
+        ->where('social_type', 'weixin')
+        ->name('socials.authorizations.store');
+    ```
+    - 注意这里的参数，我们对 social_type 进行了限制，只会匹配 weixin，如果你增加了其他的第三方登录，可以在这里增加限制，例如支持微信及微博：`->where('social_type', 'weixin|weibo')` 。
+- 3.[第三方登录逻辑](https://learnku.com/courses/laravel-advance-training/6.x/wechat-token-authentication/5711#2b90cc)  
+  创建 controller 和 request
+  ```
+  $ php artisan make:controller Api/AuthorizationsController
+  $ php artisan make:request Api/SocialAuthorizationRequest
+  ```
+  app/Http/Requests/Api/SocialAuthorizationRequest.php
+  ```
+  <?php
+
+  namespace App\Http\Requests\Api;
+
+  class SocialAuthorizationRequest extends FormRequest
+  {
+      public function rules()
+      {
+          // 客户端要么提交授权码（code），要么提交 access_token 和 openid
+          $rules = [
+              'code' => 'required_without:access_token|string',
+              'access_token' => 'required_without:code|string',
+          ];
+
+          if ($this->social_type == 'weixin' && !$this->code) {
+              $rules['openid']  = 'required|string';
+          }
+
+          return $rules;
+      }
+  }
+  ```
+  修改用户模型 app/Models/User.php
+  ```
+  protected $fillable = [
+      'name', 'phone', 'email', 'password', 'introduction', 'avatar',
+      'weixin_openid', 'weixin_unionid'
+  ];
+  ```
+  app/Http/Controllers/Api/AuthorizationsController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use App\Models\User;
+  use Illuminate\Support\Arr;
+  use Illuminate\Http\Request;
+  use Illuminate\Auth\AuthenticationException;
+  use App\Http\Requests\Api\SocialAuthorizationRequest;
+
+  class AuthorizationsController extends Controller
+  {
+      public function socialStore($type, SocialAuthorizationRequest $request)
+      {
+          $driver = \Socialite::driver($type);
+
+          try {
+              if ($code = $request->code) {
+                  $response = $driver->getAccessTokenResponse($code);
+                  $token = Arr::get($response, 'access_token');
+              } else {
+                  $token = $request->access_token;
+
+                  if ($type == 'weixin') {
+                      $driver->setOpenId($request->openid);
+                  }
+              }
+
+              $oauthUser = $driver->userFromToken($token);
+          } catch (\Exception $e) {
+              throw new AuthenticationException('参数错误，未获取用户信息');
+          }
+
+          switch ($type) {
+          case 'weixin':
+              $unionid = $oauthUser->offsetExists('unionid') ? $oauthUser->offsetGet('unionid') : null;
+
+              if ($unionid) {
+                  $user = User::where('weixin_unionid', $unionid)->first();
+              } else {
+                  $user = User::where('weixin_openid', $oauthUser->getId())->first();
+              }
+
+              // 没有用户，默认创建一个用户
+              if (!$user) {
+                  $user = User::create([
+                      'name' => $oauthUser->getNickname(),
+                      'avatar' => $oauthUser->getAvatar(),
+                      'weixin_openid' => $oauthUser->getId(),
+                      'weixin_unionid' => $unionid,
+                  ]);
+              }
+
+              break;
+          }
+
+          return response()->json(['token' => $user->id]);
+      }
+  }
+  ```
+  - 只有在用户将公众号绑定到微信开放平台帐号后，才会出现 unionid 字段。这里 有相关说明。但是由于微信开放平台只有通过认证才能绑定公众号，代码做了兼容处理。
+  - controller 的逻辑
+    - 客户端要么提交授权码（code），要么提交 access_token 和 openid
+    - 无论哪种方式，服务器都会调用微信接口，获取授权用户数据，从而确认数据的有效性。这一步很重要，客户端提交的一切都是不可信任的，切记不能客户端直接换取用户信息，提交 openid 或 unionid 以及用户数据到服务器，直接入库。
+    - 根据 openid 或 unionid 去数据库查询是否该用户已经存在，如果不存在，则创建用户
+    - 最后由服务器为该用户颁发授权凭证。
+    - 这里暂时返回用户 id 用于测试，下一节学习了 jwt 相关的内容后，我们会替换这部分代码。
+- 4.使用 PostMan 测试
+  - POST http://{{host}}/api/v1/socials/:social_type/authorizations  
+    Params (Path Variables)
+    ```
+    [ 'social_type' => 'weixin' ]
+    ```
+    - URL 中以冒号开头的是变量，可以在 Path Variables 中对变量进行赋值。
+    Body (form-data)
+    ```
+    [ 'code' => '' ]
+    ```
+- 5.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "4.4 微信登录"
   ```
