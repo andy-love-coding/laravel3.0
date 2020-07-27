@@ -1255,3 +1255,260 @@
   $ git add -A
   $ git commit -m "4.4 微信登录"
   ```
+### 4.5 登录 API 获取 JWT 令牌
+- 1.[什么是 JWT](https://learnku.com/courses/laravel-advance-training/6.x/mobile-login-api/5712#1d1fad)
+- 2.安装 jwt-auth
+  ```
+  $ composer require tymon/jwt-auth:1.0.0-rc.5
+  ```
+  - 安装完成后，我们需要设置一下 JWT 的 secret，这个 secret 很重要，用于最后的签名，更换这个 secret 会导致之前生成的所有 token 无效。
+    ```
+    $ php artisan jwt:secret
+    ```
+    执行完后，可以看到在 .env 文件中，增加了一行 JWT_SECRET。
+- 3.修改 config/auth.php，将 api guard 的 driver 改为 jwt。  
+  config/auth.php
+  ```
+  'guards' => [
+      'web' => [
+          'driver' => 'session',
+          'provider' => 'users',
+      ],
+
+      'api' => [
+          'driver' => 'jwt',
+          'provider' => 'users',
+      ],
+  ],
+  ```
+- 4.User 模型需要继承 Tymon\JWTAuth\Contracts\JWTSubject 接口，并实现接口的两个方法 getJWTIdentifier() 和 getJWTCustomClaims()
+  app\Models\User.php
+  ```
+  use Tymon\JWTAuth\Contracts\JWTSubject;
+  class User extends Authenticatable implements MustVerifyEmailContract, JWTSubject
+  {
+    ...
+    // getJWTIdentifier 返回了 User 的 id
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    // getJWTCustomClaims 是我们需要额外在 JWT 载荷中增加的自定义内容，这里返回空数组
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+  }
+  ```
+- 5.tinker 中测试生成一个 token
+  ```
+  $ php artisan tinker
+  >>> $user = User::first();
+  >>>Auth::guard('api')->login($user);
+  => "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9sYXJhdmVsMy4wLnRlc3QiLCJpYXQiOjE1OTU4NTQxMTYsImV4cCI6MTU5NTg1NzcxNiwibmJmIjoxNTk1ODU0MTE2LCJqdGkiOiJIYVlZdnVDa3M0R2xQZGVkIiwic3ViIjoxLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3In0.U4_uDLzQ-zpqDkUdATGrhZ-Qoz-fzV7T4uH9FGQPzL4"
+  ```
+  - jwt-auth 有两个重要的参数，可以在 .env 中进行设置
+    - JWT_TTL 生成的 token 在多少分钟后过期，默认 60 分钟
+    - JWT_REFRESH_TTL 生成的 token，在多少分钟内，可以刷新获取一个新 token，默认 20160 分钟，14 天。
+- 6.账号密码登录
+  - 6.1 路由 routes/api.php
+    ```
+    // 第三方登录
+        Route::post('socials/{social_type}/authorizations', 'AuthorizationsController@socialStore')
+            ->where('socail_type', 'weixin')
+            ->name('socials.authorizations.store');
+    // 账号密码登录
+    Route::post('authorizations', 'AuthorizationsController@store')
+        ->name('authorizations.store');
+    ```
+  - 6.2 创建账号密码登录的 request
+    ```
+    $ php artisan make:request Api/AuthorizationRequest
+    ```
+    app/Http/Requests/Api/AuthorizationRequest.php
+    ```
+    public function rules()
+    {
+        return [
+            'username' => 'required|string',
+            'password' => 'required|alpha_dash|min:6',
+        ];
+    }
+    ```
+  - 6.3 控制器 app/Http/Controllers/Api/AuthorizationsController.php  
+    新建账号密码登录方法 store；并修改第三方登录后返回的逻辑
+    ```
+    <?php
+
+    namespace App\Http\Controllers\Api;
+
+    use App\Models\User;
+    use Illuminate\Support\Arr;
+    use Illuminate\Http\Request;
+    use Illuminate\Auth\AuthenticationException;
+    use App\Http\Requests\Api\AuthorizationRequest;
+    use App\Http\Requests\Api\SocialAuthorizationRequest;
+
+    class AuthorizationsController extends Controller
+    {
+        // 账号密码登录
+        public function store(AuthorizationRequest $request)
+        {
+            $username = $request->username;
+
+            filter_var($username, FILTER_VALIDATE_EMAIL) ?
+                $credentials['email'] = $username :
+                $credentials['phone'] = $username;
+
+            $credentials['password'] = $request->password;
+
+            if (!$token = \Auth::guard('api')->attempt($credentials)) {
+                throw new AuthenticationException('用户名或密码错误');
+            }
+
+            return $this->respondWithToken($token)->setStatusCode(201);
+        }
+
+        // 第三方登录
+        public function socialStore($type, SocialAuthorizationRequest $request)
+        {
+            $driver = \Socialite::driver($type);
+
+            try {
+                if ($code = $request->code) {
+                    $response = $driver->getAccessTokenResponse($code);
+                    $token = Arr::get($response, 'access_token');
+                } else {
+                    $token = $request->access_token;
+
+                    if ($type == 'weixin') {
+                        $driver->setOpenId($request->openid);
+                    }
+                }
+
+                $oauthUser = $driver->userFromToken($token);
+            } catch (\Exception $e) {
+                throw new AuthenticationException('参数错误，未获取用户信息');
+            }
+
+            switch ($type) {
+            case 'weixin':
+                $unionid = $oauthUser->offsetExists('unionid') ? $oauthUser->offsetGet('unionid') : null;
+
+                if ($unionid) {
+                    $user = User::where('weixin_unionid', $unionid)->first();
+                } else {
+                    $user = User::where('weixin_openid', $oauthUser->getId())->first();
+                }
+
+                // 没有用户，默认创建一个用户
+                if (!$user) {
+                    $user = User::create([
+                        'name' => $oauthUser->getNickname(),
+                        'avatar' => $oauthUser->getAvatar(),
+                        'weixin_openid' => $oauthUser->getId(),
+                        'weixin_unionid' => $unionid,
+                    ]);
+                }
+
+                break;
+            }
+
+            $token= auth('api')->login($user);
+
+            return $this->respondWithToken($token)->setStatusCode(201);
+        }
+
+        protected function respondWithToken($token)
+        {
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60
+            ]);
+        }
+    }
+    ```
+- 7.测试登录后，下发 token
+  - 7.1 账号密码登录测试：POST http://{{host}}/api/v1/authorizations  
+    传参 body (form-data)
+    ```
+    [ 'username' => 'summer@example.com', 'password' => '12345678' ]
+    ```
+  - 7.2 第三方登录测试：POST http://{{host}}/api/v1/socials/:social_type/authorizations  
+    传参 Params
+    ```
+    [ 'social_type' => 'weixin' ]
+    ```
+    传参 Body (form-data)
+    ```
+    [ 'code' => '021kBRUI1wlXm10r5TSI1UCUUI1kBRUs' ]
+    ``` 
+  - 7.3 两种登录都返回如下格式的结果
+    ```
+    {
+        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9sYXJhdmVsMy4wLnRlc3RcL2FwaVwvdjFcL2F1dGhvcml6YXRpb25zIiwiaWF0IjoxNTk1ODUzMzMyLCJleHAiOjE1OTU4NTY5MzIsIm5iZiI6MTU5NTg1MzMzMiwianRpIjoicEl5blVUQnZ3ZVRVenlKSCIsInN1YiI6MiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.NvKUxBsrF0uHxTRFkFWd5aTHDmdoJWtEegJJKw1XLJw",
+        "token_type": "Bearer",
+        "expires_in": 3600
+    }
+    ```
+- 8.刷新/删除 token
+  - 8.1 路由 routes/api.php
+    ```
+    // 刷新token
+    Route::put('authorizations/current', 'AuthorizationsController@update')
+        ->name('authorizations.update');
+    // 删除token
+    Route::delete('authorizations/current', 'AuthorizationsController@destroy')
+        ->name('authorizations.destroy');
+    ```
+  - 8.2 控制器 app/Http/Controllers/Api/AuthorizationsController.php
+    ```
+    public function update()
+    {
+        $token = auth('api')->refresh();
+        return $this->respondWithToken($token);
+    }
+
+    public function destroy()
+    {
+        auth('api')->logout();
+        return response(null, 204);
+    }
+    ```
+    - 这两个方法我们都需要提交当前的 token，正确的提交方式是在增加 Authorization Header。
+      ```
+      Authorization: Bearer {token}
+      ```
+      注意 Bearer 和 token 之间有一个空格
+- 9 测试刷新/删除 token
+  - 9.1 刷新 token 测试：PUT http://{{host}}/api/v1/authorizations/current  
+    添加 Header（Authorization）
+    ```
+    Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9sYXJhdmVsMy4wLnRlc3RcL2FwaVwvdjFcL2F1dGhvcml6YXRpb25zIiwiaWF0IjoxNTk1ODUzMzMyLCJleHAiOjE1OTU4NTY5MzIsIm5iZiI6MTU5NTg1MzMzMiwianRpIjoicEl5blVUQnZ3ZVRVenlKSCIsInN1YiI6MiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.NvKUxBsrF0uHxTRFkFWd5aTHDmdoJWtEegJJKw1XLJw
+    ```
+    正确的结果如下：
+    ```
+    {
+        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9sYXJhdmVsMy4wLnRlc3RcL2FwaVwvdjFcL2F1dGhvcml6YXRpb25zXC9jdXJyZW50IiwiaWF0IjoxNTk1ODUzMzMyLCJleHAiOjE1OTU4NTY5NzYsIm5iZiI6MTU5NTg1MzM3NiwianRpIjoid25XQmlrTTRrNkN6bXpQdCIsInN1YiI6MiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.Um6izQwTRicfjVjlvzl3F638F7doroO-PwKQTP-C1iI",
+        "token_type": "Bearer",
+        "expires_in": 3600
+    }
+    ```
+  - 9.2 删除 token 测试：DELETE http://{{host}}/api/v1/authorizations/current  
+    添加 Header（Authorization）
+    ```
+    Authorization: {token}
+    ```
+    正确的结果为：
+    ```
+    204 No Content
+    ```
+  - 9.3 PostMan 小技巧
+    - 在添加 Header（Authorization）的时候，可以直接选择 Authorization， 再选择其中的 Bearer Token，直接填写 token 即可。
+- 10.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m "4.5 登录后，下发 JWT 令牌"
+  ```

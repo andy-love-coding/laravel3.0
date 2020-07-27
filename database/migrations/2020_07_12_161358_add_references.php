@@ -34,14 +34,14 @@ class AddReferences extends Migration
      */
     public function down()
     {
-        Schema::table('topic', function (Blueprint $table) {
+        Schema::table('topics', function (Blueprint $table) {
             // 移除外键约束
-            $table->dropForeign('user_id');
+            $table->dropForeign(['user_id']);
         });
 
         Schema::table('replies', function (Blueprint $table) {
-            $table->dropForeign('user_id');
-            $table->dropForeign('topic_id');
+            $table->dropForeign(['user_id']);
+            $table->dropForeign(['topic_id']);
         });
     }
 }
