@@ -1020,7 +1020,72 @@
     https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
     ```
 - 3.Git 版本控制
-```
-$ git add .
-$ git commit -m '4.1 4.2 微信登录开发前的准备及测试'
-```
+  ```
+  $ git add .
+  $ git commit -m '4.1 4.2 微信登录开发前的准备及测试'
+  ```
+### 4.3 微信登录
+- 1.安装 socialiteproviders  
+  [socialiteproviders](https://socialiteproviders.netlify.app/) 为 Laravel Socialite 提供了更多的第三方登录方式，基本上你需要的，都能在这里找到。  
+  - 1.1 首先找到 [微信的 provider](https://socialiteproviders.netlify.app/providers/weixin.html)，一步步完成安装。
+    ```
+    $ composer require socialiteproviders/weixin
+    ```
+  - 1.2 设置 app/Providers/EventServiceProvider.php
+    ```
+    protected $listen = [
+        \SocialiteProviders\Manager\SocialiteWasCalled::class => [
+            // add your listeners (aka providers) here
+            'SocialiteProviders\Weixin\WeixinExtendSocialite@handle'
+        ],
+        Registered::class => [
+            SendEmailVerificationNotification::class,
+        ],
+
+        \Illuminate\Auth\Events\Verified::class => [
+            \App\Listeners\EmailVerified::class,
+        ],
+    ];
+    ```
+- 2.功能调试  
+  客户端只获取授权码（code），客户端不保存 app_secret，获取到授权码 code 后就提交给服务器，服务器完成换取 access_token 及换取用户信息的流程。
+  - 2.1 首先需要在服务端配置 app_id 及 app_secret，修改如下  
+    config/services.php
+    ```
+    'weixin' => [
+        'client_id' => env('WEIXIN_KEY'),
+        'client_secret' => env('WEIXIN_SECRET'),
+        'redirect' => env('WEIXIN_REDIRECT_URI'),  
+    ], 
+    ```
+    .env
+    ```
+    # socialite weixin
+    WEIXIN_KEY=wxed2d3c585******
+    WEIXIN_SECRET=61155a05b9103b949ebe3********
+    ```
+    修改 .env.example
+    ```
+    # socialite weixin
+    WEIXIN_KEY=
+    WEIXIN_SECRET=
+    ```
+  - 2.2 打开 tinker 测试  
+    通过 微信开发者工具 获取一个 code，执行如下代码，将 CODE 替换成你自己的
+    ```
+    $code = 'CODE';
+    $driver = Socialite::driver('weixin');
+    $response = $driver->getAccessTokenResponse($code);
+    $driver->setOpenId($response['openid']);
+    $oauthUser = $driver->userFromToken($response['access_token']);
+    ```
+    - 出于安全的考虑，授权码只能使用一次！！！请不要重复使用同一个 Code 进行调试，如果你调试中报错了，可以打印一下 $response，code been used, hints 就说明 Code 已经使用过了。
+- 3.第三方登录处理流程
+  - 根据用户的 openid/unionid 查找数据库中已存在的用户
+  - 用户存在，返回该用户的登录凭证
+  - 用户不存在，根据微信信息创建用户，返回该用户的登录凭证
+- 4.Git 提交代码
+  ```
+  $ git add -A
+  $ git commit -m "add socialiteproviders"
+  ```
