@@ -2251,3 +2251,78 @@
   $ git add -A
   $ git commit -m '6.2 发布话题'
   ```
+### 6.3 修改话题
+- 1.修改 TopicRequest  
+  app/Http/Requests/Api/TopicRequest.php
+  ```
+  public function rules()
+  {
+      switch($this->method()) {
+          case 'POST':
+              return [
+                  'title' => 'required|string',
+                  'body' => 'required|string',
+                  'category_id' => 'required|exists:categories,id',
+              ];
+              break;
+          case 'PATCH':
+              return [
+                  'title' => 'string',
+                  'body' => 'string',
+                  'category_id' => 'exists:categories,id',
+              ];
+              break;
+      }
+  }
+  ```
+- 2.修改 TopicsController  
+  app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function update(TopicRequest $request, Topic $topic)
+  {
+      // 注意不要使用有 manage_contents 权限的用户，也就是 id 为 1 ，2 的用户，
+      // 他们有管理内容的权限，所以可以修改任何人的话题。
+      $this->authorize('update', $topic);
+
+      $topic->update($request->all());
+      return new TopicResource($topic);
+  }
+  ```
+  - 在第二本教程中，已经添加了 topic 相关的 policy，所以这里可以直接使用 $this->authorize('update', $topic); 来判断用户是否有权限修改话题。
+- 3.测试修改话题
+  - PATCH http://{{host}}/api/v1/topics/:id  
+    - 需登录 Header(Authorization)
+    - 传参 Params
+      ```
+      id: 100
+      ```
+    - 传参 Body (x-www-form-urlencoded)
+      ```
+      title: title-update
+      body: body-update
+      category_id: 3
+      ```
+      - 注意 patch 需要使用 x-www-form-urlencoded
+    - 正确结果为：
+      ```
+      {
+          "id": 73,
+          "title": "title-update",
+          "body": "<p>body-update</p>",
+          "user_id": 8,
+          "category_id": "3",
+          "reply_count": 0,
+          "view_count": 0,
+          "last_reply_user_id": 0,
+          "order": 0,
+          "excerpt": "body-update",
+          "slug": "titleupdate11",
+          "created_at": "2020-06-30 12:19:13",
+          "updated_at": "2020-07-28 20:41:58"
+      }
+      ```
+- 4.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '6.3 话题修改'
+  ```
