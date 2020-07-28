@@ -2326,3 +2326,30 @@
   $ git add -A
   $ git commit -m '6.3 话题修改'
   ```
+### 6.4 删除话题
+- 1.修改 TopicController  
+  app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function destroy(Topic $topic)
+  {
+      $this->authorize('destroy', $topic);
+
+      $topic->delete();
+
+      return response(null, 204);
+  }
+  ```
+- 2.测试删除话题
+  - DELETE http://{{host}}/api/v1/topics/:id
+    - 需登录 Header(Authorization)
+    - 传参 Params
+      ```
+      id: 20
+      ```
+    - 删除自己的话题结果为：204 No Content
+    - 删除别人的话题结果为：403 forbidden （删除别人的话题时，不要用有 manage_contents 权限的用户来操作）
+- 3.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '6.4 删除话题'
+  ```
