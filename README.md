@@ -2164,3 +2164,90 @@
   $ git add -A
   $ git commit -m '6.1 分类列表'
   ```
+### 6.2 发布话题
+- 1.增加路由 routes/api.php  
+  ```
+  // 游客可以访问的接口
+
+  // 话题列表，详情
+  Route::resource('topics', 'TopicsController')->only([
+      'index', 'show'
+  ]);
+
+  // 登录后可以访问的接口
+
+    // 发布话题
+    Route::resource('topics', 'TopicsController')->only([
+        'store', 'update', 'destroy'
+    ]);
+  ```
+- 2.增加 TopicRequest
+  ```
+  $ php artisan make:request Api/TopicRequest
+  ```
+  app/Http/Requests/Api/TopicRequest.php
+  ```
+  public function rules()
+  {
+      return [
+          'title' => 'required|string',
+          'body' => 'required|string',
+          'category_id' => 'required|exists:categories,id',
+      ];
+  }
+
+  public function attributes()
+  {
+      return [
+          'title' => '标题',
+          'body' => '话题内容',
+          'category_id' => '分类',
+      ];
+  }
+  ```
+- 3.增加 TopicResource
+  ```
+  $ php artisan make:resource TopicResource
+  ```
+- 4.增加 TopicsController
+  ```
+  $ php artisan make:controller Api/TopicsController
+  ```
+  app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function store(TopicRequest $request, Topic $topic)
+  {
+      $topic->fill($request->all());
+      $topic->user_id = $request->user()->id;
+      $topic->save();
+
+      return new TopicResource($topic);
+  }
+  ```
+- 5.测试发布话题
+  - POST http://{{host}}/api/v1/topics  
+    - 需登录 Header(Authorization)
+    - 传参 Body (form-data)
+      ```
+      title: test
+      body: test_content
+      category_id: 1
+      ```
+    - 结果为：201 Created
+      ```
+      {
+          "title": "test",
+          "body": "<p>test_content</p>",
+          "category_id": "1",
+          "user_id": 1,
+          "excerpt": "test_content",
+          "updated_at": "2020-07-28 19:44:45",
+          "created_at": "2020-07-28 19:44:45",
+          "id": 101
+      }
+      ```
+- 6.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '6.2 发布话题'
+  ```
