@@ -1901,7 +1901,7 @@
     - 注意这里使用的方法是 patch，patch 与 put 的区别为：
       - put 替换某个资源，需提供完整的资源信息；
       - patch 部分修改资源，提供部分资源信息。
-  - 4.2 修改UserRequest：app/Http/Requests/Api/UserRequest.php
+  - 4.2 修改UserRequest(exists:images,id)：app/Http/Requests/Api/UserRequest.php
     ```
     <?php
 
@@ -2020,4 +2020,147 @@
   ```
   $ git add -A
   $ git commit -m '5.2 编辑用户信息'
+  ```
+## 6 帖子数据
+### 6.1 分类列表
+- 1.添加路由 routes/api.php
+  ```
+  // 游客可以访问的接口
+
+  // 某个用户的详情
+  Route::get('users/{user}', 'UsersController@show')
+      ->name('users.show');
+  // 分类列表
+  Route::get('categories', 'CategoriesController@index')
+      ->name('categories.index');
+  ```
+- 2.创建 CategoryResource
+  ```
+  $ php artisan make:resource CategoryResource
+  ```
+- 3.创建 CategoriesController
+  ```
+  $ php artisan make:controller Api/CategoriesController
+  ```
+  app/Http/Controllers/Api/CategoriesController.php
+  ```
+  use App\Models\Category;
+  use App\Http\Resources\CategoryResource;
+  ...
+    public function index()
+    {
+        return CategoryResource::collection(Category::all());
+    }
+  ```
+- 4.测试获取分类信息
+  - GET http://{{host}}/api/v1/categories
+    - 结果为
+      ```
+      [
+          {
+              "id": 1,
+              "name": "分享",
+              "description": "分享创造，分享发现",
+              "post_count": 0
+          },
+          {
+              "id": 2,
+              "name": "教程",
+              "description": "开发技巧、推广扩展包等",
+              "post_count": 0
+          },
+          {
+              "id": 3,
+              "name": "问答",
+              "description": "请保持友善，互相帮助",
+              "post_count": 0
+          },
+          {
+              "id": 4,
+              "name": "公告",
+              "description": "站点公告",
+              "post_count": 0
+          }
+      ]
+      ```
+      - 发现：「集合资源」没有 data 包裹层。当返回一个「集合资源」时，返回数据格式是一个数组，这是因为我们已经设置了 API 资源的数据包裹 Resource::withoutWrapping()，即没有 data 包裹层。
+      - 但是这样就造成了，「集合资源」和「分页资源」的响应数据不统一，而大部分情况下我们返回的集合数据都会使用分页，下面将试着使用分页获取分类数据并返回。
+- 5.调整数据格式(增加 data 包裹层)
+  - 5.1 试着用分页获取数据 app/Http/Controllers/Api/CategoriesController.php
+    ```
+    return CategoryResource::collection(Category::paginate());
+    ```
+    - 再次测试结果为
+      ```
+      {
+          "data": [
+              {
+                  ...
+              },
+              {
+                  ...
+              },
+              {
+                  ...
+              },
+              {
+                  "id": 4,
+                  "name": "公告",
+                  "description": "站点公告",
+                  "post_count": 0
+              }
+          ],
+          "links": {
+              "first": "http://laravel3.0.test/api/v1/categories?page=1",
+              "last": "http://laravel3.0.test/api/v1/categories?page=1",
+              "prev": null,
+              "next": null
+          },
+          "meta": {
+              "current_page": 1,
+              "from": 1,
+              "last_page": 1,
+              "path": "http://laravel3.0.test/api/v1/categories",
+              "per_page": 15,
+              "to": 4,
+              "total": 4
+          }
+      }
+      ```
+      - 发现：「分页资源」有 data 包裹层。「分页资源」中默认增加了分页相关的信息，而分类的「集合数据」是放在 data 下面的，即有了 data 包裹层。
+  - 5.2 增加 data 包裹层：即为了数据统一，我们让无分页的「集合资源」也放在 data 下面
+    app/Http/Controllers/Api/CategoriesController.php
+    ```
+    public function index()
+    {
+        CategoryResource::wrap('data');
+        return CategoryResource::collection(Category::all());
+    }
+    ```
+    - 再次测试结果为
+      ```
+      {
+          "data": [
+              {
+                  ...
+              },
+              {
+                  ...
+              },
+              {
+                  ...
+              },
+              {
+                  "id": 4,
+                  "name": "公告",
+                  "description": "站点公告",
+                  "post_count": 0
+              }
+          ]
+      }
+      ```
+- 6.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '6.1 分类列表'
   ```
