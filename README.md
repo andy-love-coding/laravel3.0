@@ -192,7 +192,7 @@
   $ git add .
   $ git commit -m '2.7 API 基础配置'
   ```
-## 手机注册
+## 3 手机注册
 ### 3.1 手机注册流程讲解
   - 1.[手机注册流程讲解](https://learnku.com/courses/laravel-advance-training/6.x/explanation-of-mobile-registration-process/5701)
 ### 3.2 短信提供商
@@ -1570,4 +1570,182 @@
   ```
   $ git add -A
   $ git commit -m "4.6 用命令生成1年期的 jwt Token"
+  ```
+## 5 用户数据
+### 5.1 获取用户信息
+- 1.添加路由 routes/api.php
+  ```
+  Route::middleware('throttle:' . config('api.rate_limits.access'))->group(function() {
+      // 游客可以访问的接口
+
+      // 某个用户的详情
+      Route::get('users/{user}', 'UsersController@show')
+          ->name('users.show');
+
+      // 登录后可以访问的接口
+      Route::middleware('auth:api')->group(function() {
+          // 当前登录用户信息
+          Route::get('user', 'UsersController@me')
+              ->name('user.show');
+      });
+  });
+  ```
+  - 使用 auth:api 中间件验证用户的 JWT 是否合法。这样就将接口继续分为了两类：
+    - 游客可以访问的接口；
+    - 登录用户才可以访问的接口。
+- 2.修改控制器 app/Http/Controllers/Api/UsersController.php  
+  ```
+  public function show(User $user, Request $request)
+  {
+      return new UserResource($user);
+  }
+
+  public function me(Request $request)
+  {
+      return new UserResource($request->user());
+  }
+  ```
+  - auth:api 中间件对用户身份进行了判断，JWT 不正确的用户会抛出 401，而正确登录的用户，也就是 JWT 正确的用户，可以直接通过 $request->user() 获取，最后返回 UserResource 即可。
+- 3.测试获取当前登录用户信息
+  - 3.1 获取当前用户信息：GET http://{{host}}/api/v1/user  
+    传参 Header(Authorization)
+    ```
+    Authorization: Bearer {token}
+    ```
+  - 3.2 获取某个用户的详情：GET http://{{host}}/api/v1/users/:id  
+    传参 Params
+    ```
+    id : 2
+    ```
+  - 3.3 获取的结果格式如：
+    ```
+    {
+        "id": 1,
+        "name": "Summer",
+        "phone": null,
+        "email": "summer@example.com",
+        "email_verified_at": "2020-07-27 19:01:50",
+        "weixin_openid": null,
+        "weixin_unionid": null,
+        "created_at": "1972-04-23 05:28:59",
+        "updated_at": "2020-07-27 19:01:50",
+        "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png",
+        "introduction": "Vel quia vel excepturi possimus.",
+        "notification_count": 0,
+        "last_actived_at": "1972-04-22T21:28:59.000000Z"
+    }
+    ```
+- 4.屏蔽敏感信息（Resource 开关）
+  - 4.1 隐藏敏感字段(weixin_openid、weixin_unionid) app/Models/User.php
+    ```
+    protected $hidden = [
+        'password', 'remember_token', 'weixin_openid', 'weixin_unionid'
+    ];
+    ```
+  - 4.2 修改 Resource（开关）： app/Http/Resources/UserResource.php
+    ```
+    <?php
+
+    namespace App\Http\Resources;
+
+    use Illuminate\Http\Resources\Json\JsonResource;
+
+    class UserResource extends JsonResource
+    {
+        protected $showSensitiveFields = false;
+
+        public function toArray($request)
+        {
+            if (!$this->showSensitiveFields) {
+                $this->resource->addHidden(['phone', 'email']);
+            }
+
+            $data = parent::toArray($request);
+
+            $data['bound_phone'] = $this->resource->phone ? true : false;
+            $data['bound_wechat'] = ($this->resource->weixin_unionid || $this->resource->weixin_openid) ? true : false;
+
+            return $data;
+        }
+
+        public function showSensitiveFields()
+        {
+            $this->showSensitiveFields = true;
+
+            return $this;
+        }
+    }
+    ```
+    - 在 toArray 方法中，最后的返回数据中，增加了两个字段：
+      - bound_phone 是否绑定手机；
+      - bound_wechat 是否绑定微信。
+    - 接着简单的设计了一个 showSensitiveFields 的开关，默认是 false，也就是默认将 phone 和 email 字段隐藏。
+  - 4.3 修改控制器 app/Http/Controllers/Api/UsersController.php
+    ```
+    public function store(UserRequest $request)
+    {
+        .
+        .
+        .
+        return (new UserResource($user))->showSensitiveFields();
+    }    
+
+    public function show(User $user, Request $request)
+    {
+        return new UserResource($user);
+    }
+
+    public function me(Request $request)
+    {
+        return (new UserResource($request->user()))->showSensitiveFields();
+    }
+    ```
+- 5.测试屏蔽敏感信息
+  - 5.1 获取当前用户信息（返回敏感信息 phone 和 email）：GET http://{{host}}/api/v1/user  
+    传参 Header(Authorization)
+    ```
+    Authorization: Bearer {token}
+    ```
+    结果为：
+    {
+        "id": 1,
+        "name": "Summer",
+        "phone": null,
+        "email": "summer@example.com",
+        "email_verified_at": "2020-07-27 19:01:50",
+        "created_at": "1972-04-23 05:28:59",
+        "updated_at": "2020-07-27 19:01:50",
+        "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png",
+        "introduction": "Vel quia vel excepturi possimus.",
+        "notification_count": 0,
+        "last_actived_at": "1972-04-22T21:28:59.000000Z",
+        "bound_phone": false,
+        "bound_wechat": false
+    }
+    ```
+  - 5.2 获取某个用户的详情（不返回敏感信息 phone 和 email）：GET http://{{host}}/api/v1/users/:id  
+    传参 Params
+    ```
+    id : 2
+    ```
+    结果为：
+    ```
+    {
+        "id": 1,
+        "name": "Summer",
+        "email_verified_at": "2020-07-27 19:01:50",
+        "created_at": "1972-04-23 05:28:59",
+        "updated_at": "2020-07-27 19:01:50",
+        "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png",
+        "introduction": "Vel quia vel excepturi possimus.",
+        "notification_count": 0,
+        "last_actived_at": "1972-04-22T21:28:59.000000Z",
+        "bound_phone": false,
+        "bound_wechat": false
+    }
+    ```
+- 6.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '5.1 用户信息 屏蔽敏感信息 Resource开关'
   ```
