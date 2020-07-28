@@ -1749,3 +1749,275 @@
   $ git add -A
   $ git commit -m '5.1 用户信息 屏蔽敏感信息 Resource开关'
   ```
+### 5.2 编辑用户信息
+- 1.HTTP 提交数据有两种方式
+  ```
+  - application/x-www-form-urlencoded (默认值)
+  - multipart/form-data
+  ```
+  - form 表单提交文件的时候，需要增加 enctype="multipart/form-data"，才能正确传输文件，因为默认的 enctype 是 enctype="application/x-www-form-urlencoded"
+  - 需要明确的是，只有当 POST 配合 multipart/form-data 时才能正确传输文件。
+- 2.图片资源
+  - 2.1 添加一个图片资源(迁移文件)
+    ```
+    $ php artisan make:migration create_images_table
+    ```
+    database/migrations/< your_date >_create_images_table.php
+    ```
+    public function up()
+    {
+        Schema::create('images', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->integer('user_id')->index();
+            $table->string('type')->index();
+            $table->string('path');
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('images');
+    }
+    ```
+    - 记录图片类型是因为不同类型的图片有不同的尺寸，以及不同的文件目录，修改个人头像所使用的 image 必须为 avatar 类型。  
+    执行迁移
+    ```
+    php artisan migrate
+    ```
+  - 2.2 添加路由 routes/api.php
+    ```
+    // 登录后可以访问的接口
+    Route::middleware('auth:api')->group(function() {
+        // 当前登录用户信息
+        Route::get('user', 'UsersController@me')
+            ->name('user.show');
+        // 上传图片
+        Route::post('images', 'ImagesController@store')
+            ->name('images.store');
+    });
+    ```
+  - 2.3 创建 模型、request、resource、controller
+    ```
+    $ php artisan make:model Models/Image
+    $ php artisan make:request Api/ImageRequest
+    $ php artisan make:resource ImageResource
+    $ php artisan make:controller Api/ImagesController
+    ```
+    app\Models\Image.php
+    ```
+    protected $fillable = ['type', 'path'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    ```
+    app/Http/Requests/Api/ImageRequest.php
+    ```
+    public function rules()
+    {
+
+        $rules = [
+            'type' => 'required|string|in:avatar,topic',
+        ];
+
+        if ($this->type == 'avatar') {
+            $rules['image'] = 'required|mimes:jpeg,bmp,png,gif|dimensions:min_width=200,min_height=200';
+        } else {
+            $rules['image'] = 'required|mimes:jpeg,bmp,png,gif';
+        }
+
+        return $rules;
+    }
+
+    public function messages()
+    {
+        return [
+            'image.dimensions' => '图片的清晰度不够，宽和高需要 200px 以上',
+        ];
+    }
+    ```
+    app/Http/Controllers/Api/ImagesController.php
+    ```
+    <?php
+
+    namespace App\Http\Controllers\Api;
+
+    use App\Models\Image;
+    use Illuminate\Support\Str;
+    use Illuminate\Http\Request;
+    use App\Handlers\ImageUploadHandler;
+    use App\Http\Resources\ImageResource;
+    use App\Http\Requests\Api\ImageRequest;
+
+    class ImagesController extends Controller
+    {
+        public function store(ImageRequest $request, ImageUploadHandler $uploader, Image $image)
+        {
+            $user = $request->user();
+
+            $size = $request->type == 'avatar' ? 416 : 1024;
+            $result = $uploader->save($request->image, Str::plural($request->type), $user->id, $size);
+
+            $image->path = $result['path'];
+            $image->type = $request->type;
+            $image->user_id = $user->id;
+            $image->save();
+
+            return new ImageResource($image);
+        }
+    }
+    ```
+- 3.测试上传图片
+  - 上传图片 POST http://{{host}}/api/v1/images  
+    - 需登录 Header(Authorization)
+    - body (form-data)
+      ```
+      image: imagefile
+      type: avatar
+      ```
+    - 结果为
+      ```
+      {
+          "path": "http://laravel3.0.test/uploads/images/avatars/202028/28/1_1595919115_0ZG8v3tRdH.jpg",
+          "type": "avatar",
+          "user_id": 1,
+          "updated_at": "2020-07-28 14:51:55",
+          "created_at": "2020-07-28 14:51:55",
+          "id": 1
+      }
+      ```
+- 4.编辑个人资料接口(exists:images,id)
+  - 4.1 路由 routes/api.php  
+    ```
+    // 编辑登录用户信息
+    Route::patch('user', 'UsersController@update')
+        ->name('user.update');
+    // 上传图片
+    Route::post('images', 'ImagesController@store')
+        ->name('images.store');
+    ```
+    - 注意这里使用的方法是 patch，patch 与 put 的区别为：
+      - put 替换某个资源，需提供完整的资源信息；
+      - patch 部分修改资源，提供部分资源信息。
+  - 4.2 修改UserRequest：app/Http/Requests/Api/UserRequest.php
+    ```
+    <?php
+
+    namespace App\Http\Requests\Api;
+
+    class UserRequest extends FormRequest
+    {
+        public function rules()
+        {
+            switch($this->method()) {
+            case 'POST':
+                return [
+                    'name' => 'required|between:3,25|regex:/^[A-Za-z0-9\-\_]+$/|unique:users,name',
+                    'password' => 'required|string|min:6',
+                    'verification_key' => 'required|string',
+                    'verification_code' => 'required|string',
+                ];
+                break;
+            case 'PATCH':
+                $userId = auth('api')->id();
+
+                return [
+                    'name' => 'between:3,25|regex:/^[A-Za-z0-9\-\_]+$/|unique:users,name,' .$userId,
+                    'email'=>'email|unique:users,email,'.$userId,
+                    'introduction' => 'max:80',
+                    'avatar_image_id' => 'exists:images,id,type,avatar,user_id,'.$userId,
+                ];
+                break;
+            }
+        }
+
+        public function attributes()
+        {
+            return [
+                'verification_key' => '短信验证码 key',
+                'verification_code' => '短信验证码',
+            ];
+        }
+
+        public function messages()
+        {
+            return [
+                'name.unique' => '用户名已被占用，请重新填写',
+                'name.regex' => '用户名只支持英文、数字、横杆和下划线。',
+                'name.between' => '用户名必须介于 3 - 25 个字符之间。',
+                'name.required' => '用户名不能为空。',
+            ];
+        }
+    }
+    ```
+    - 修改头像时，我们先创建 avatar 类型的图片资源，然后提交 avatar_image_id 即可。
+    - 以下代码表示：avatar_image_id 在表 images 的 id 列必须存在，同时还需满足 tpye=avatar,user_id=$userId。就是更新头像必须满足这个图片必须存在，且类型是avatar,且属于这个用户。否则就报错：avatar_image_id 不存在
+      ```
+      'avatar_image_id' => 'exists:images,id,type,avatar,user_id,'.$userId,
+      ```
+      报错
+      ```
+      {
+          "message": "The given data was invalid.",
+          "errors": {
+              "avatar_image_id": [
+                  "avatar image id 不存在。"
+              ]
+          }
+      }
+      ```
+  - 4.3 控制器 app/Http/Controllers/Api/UsersController.php
+    ```
+    use App\Models\Image;
+    ...
+      public function update(UserRequest $request)
+      {
+          $user = $request->user();
+
+          $attributes = $request->only(['name', 'email', 'introduction']);
+
+          if ($request->avatar_image_id) {
+              $image = Image::find($request->avatar_image_id);
+
+              $attributes['avatar'] = $image->path;
+          }
+
+          $user->update($attributes);
+
+          return (new UserResource($user))->showSensitiveFields();
+      }
+    ```
+- 5.测试编辑个人资料
+  - PUT http://{{host}}/api/v1/user
+    - 需登录 Header(Authorization)
+    - 传参 Body (x-www-form-urlencoded)
+      ```
+      name: testname
+      avatar_image_id: 1
+      email: test@larabbs.com
+      ```
+    结果为：
+    ```
+    {
+        "id": 1,
+        "name": "andy",
+        "phone": null,
+        "email": "test@larabbs.com",
+        "email_verified_at": "2020-07-27 19:01:50",
+        "created_at": "1972-04-23 05:28:59",
+        "updated_at": "2020-07-28 16:15:08",
+        "avatar": "http://laravel3.0.test/uploads/images/topics/202007/28/1_1595919513_7DrP0smiFX.jpg",
+        "introduction": "Vel quia vel excepturi possimus.",
+        "notification_count": 0,
+        "last_actived_at": "2020-07-28T08:14:15.000000Z",
+        "bound_phone": false,
+        "bound_wechat": false
+    }
+    ```
+- 6.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '5.2 编辑用户信息'
+  ```

@@ -15,7 +15,7 @@ class ImageUploadHandler
   {
     // 构建存储的文件夹规则，值如：uploads/images/avatars/201709/21/
     // 文件夹切割能让查找效率更高。
-    $folder_name = "uploads/images/$folder/" . date("Yd/d", time());
+    $folder_name = "uploads/images/$folder/" . date("Ym/d", time());
 
 
     // 文件具体存储的物理路劲，'public_path()' 获取的是 'public' 文件的物理路劲
