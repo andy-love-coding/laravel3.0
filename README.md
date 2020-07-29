@@ -2353,3 +2353,303 @@
   $ git add -A
   $ git commit -m '6.4 删除话题'
   ```
+### 6.5 话题列表
+- 1.修改 TopicController  
+  app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function index(Request $request, Topic $topic)
+  {
+      // $query 是 Topic 模型的查询构建器
+      $query = $topic->query();
+
+      if ($categoryId = $request->category_id) {
+          $query->where('category_id', $categoryId);
+      }
+
+      $topics = $query->withOrder($request->order)->paginate(20);
+
+      return TopicResource::collection($topics);
+  }
+  ```
+- 2.测试获取话题列表
+  - GET http://{{host}}/api/v1/topics
+  - 结果为：
+    ```
+    {
+        "data": [
+            {
+                "id": 100,
+                "title": "title-update11",
+                "body": "<p>body-update</p>",
+                "user_id": 4,
+                "category_id": 3,
+                "reply_count": 0,
+                "view_count": 0,
+                "last_reply_user_id": 0,
+                "order": 0,
+                "excerpt": "body-update",
+                "slug": "aperiam-accusantium-non-consequatur-mollitia-beatae-ab-nisi-et",
+                "created_at": "2020-06-30 20:27:36",
+                "updated_at": "2020-07-28 20:32:24"
+            },
+            ...
+        ],
+        "links": {
+            "first": "http://laravel3.0.test/api/v1/topics?page=1",
+            "last": "http://laravel3.0.test/api/v1/topics?page=6",
+            "prev": null,
+            "next": "http://laravel3.0.test/api/v1/topics?page=2"
+        },
+        "meta": {
+            "current_page": 1,
+            "from": 1,
+            "last_page": 6,
+            "path": "http://laravel3.0.test/api/v1/topics",
+            "per_page": 20,
+            "to": 20,
+            "total": 101
+        }
+    } 
+    ```
+- 3.话题中嵌套显示用户和分类数据
+  - 3.1 修改 app/Http/Controllers/Api/TopicsController.php
+    ```
+    public function index(Request $request, Topic $topic)
+    {
+        // $query 是 Topic 模型的查询构建器
+        $query = $topic->query();
+
+        if ($categoryId = $request->category_id) {
+            $query->where('category_id', $categoryId);
+        }
+
+        $topics = $query
+                ->with('user', 'category') // 预加载
+                ->withOrder($request->order)
+                ->paginate(20);
+
+        return TopicResource::collection($topics);
+    }
+    ```
+  - 3.2 修改 app/Http/Resources/TopicResource.php
+    ```
+    public function toArray($request)
+    {
+        $data = parent::toArray($request);
+        // 通过 whenLoaded 判断是否已经预加载了 user 和 category，
+        // 如果有，则使用对应的 Resource 处理并返回数据。
+        $data['user'] = new UserResource($this->whenLoaded('user'));
+        $data['category'] = new CategoryResource($this->whenloaded('category'));
+
+        return $data;
+    }
+    ```
+- 4.测试话题中嵌套显示用户和分类数据
+  - GET http://{{host}}/api/v1/topics
+  - 结果为：
+    ```
+    {
+        "data": [
+            {
+                "id": 100,
+                "title": "title-update11",
+                "body": "<p>body-update</p>",
+                "user_id": 4,
+                "category_id": 3,
+                "reply_count": 0,
+                "view_count": 0,
+                "last_reply_user_id": 0,
+                "order": 0,
+                "excerpt": "body-update",
+                "slug": "aperiam-accusantium-non-consequatur-mollitia-beatae-ab-nisi-et",
+                "created_at": "2020-06-30 20:27:36",
+                "updated_at": "2020-07-28 20:32:24",
+                "user": {
+                    "id": 4,
+                    "name": "Mrs. Raquel Wisozk",
+                    "email_verified_at": "2020-07-27 19:01:50",
+                    "created_at": "1970-04-20 04:34:15",
+                    "updated_at": "1970-04-20 04:34:15",
+                    "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/Lhd1SHqu86.png",
+                    "introduction": "Et repudiandae ducimus labore ut.",
+                    "notification_count": 0,
+                    "last_actived_at": "1970-04-19T20:34:15.000000Z",
+                    "bound_phone": false,
+                    "bound_wechat": false
+                },
+                "category": {
+                    "id": 3,
+                    "name": "问答",
+                    "description": "请保持友善，互相帮助",
+                    "post_count": 0
+                }
+            },
+            ...
+        ],
+        "links": {
+            "first": "http://laravel3.0.test/api/v1/topics?page=1",
+            "last": "http://laravel3.0.test/api/v1/topics?page=6",
+            "prev": null,
+            "next": "http://laravel3.0.test/api/v1/topics?page=2"
+        },
+        "meta": {
+            "current_page": 1,
+            "from": 1,
+            "last_page": 6,
+            "path": "http://laravel3.0.test/api/v1/topics",
+            "per_page": 20,
+            "to": 20,
+            "total": 101
+        }
+    }
+    ```
+- 5.Include机制 和 搜索条件
+  - 5.1 安装一个扩展包：spatie/laravel-query-builder
+    ```
+    $ composer require spatie/laravel-query-builder
+    ```
+    - 扩展包的使用你可以在参考一下[文档](https://docs.spatie.be/laravel-query-builder/v2/introduction/)。
+    - 这里有视频教程可以参考一下 —— [064. API 动态查询参数 —— spatie/laravel-query-builder](https://learnku.com/courses/laravel-package/2019/spatielaravel-query-builder/2509)
+  - 5.2 修改 app/Http/Controllers/Api/TopicsController.php
+    ```
+    use Spatie\QueryBuilder\QueryBuilder;
+    use Spatie\QueryBuilder\AllowedFilter;
+    ...
+      public function index(Request $request, Topic $topic)
+      {
+          $topics = QueryBuilder::for(Topic::class)
+              ->allowedIncludes('user', 'category')
+              ->allowedFilters([
+                  'title',
+                  AllowedFilter::exact('category_id'),
+                  AllowedFilter::scope('withOrder')->default('recentReplied'),
+              ])
+              ->paginate();
+
+          return TopicResource::collection($topics);
+      }
+    ```
+    - allowedIncludes 方法传入可以被 include 的参数
+    - allowedFilters 方法传入可以被搜索的条件，可以传入某个字段，例如我们这里传入了 title，这样会模糊搜索标题；如果某个字段是精确搜索需要进行指定，这里我们指定 category_id 是精确搜索的；还可以传入某个 scope，并且制定默认的参数，例如这里我们指定可以使用 withOrder 进行搜索，默认的值是 recentReplied
+  - 5.3 测试 Include参数 和 搜索条件
+    - 不包含 include 参数：GET http://{{host}}/api/v1/topics
+      - 结果为：同第2小节(测试获取话题列表)的测试结果一样
+    - 包含 include 参数：GET http://{{host}}/api/v1/topics?include=user,category
+      - 结果为：同第4小节(测试话题中嵌套显示用户和分类数据)的测试结果一样
+      - 也可以：/topics?include=user ，此时返回话题数据，及包含用户数据；
+    - 使用搜索条件：GET http://{{host}}/api/v1/topics?filter[title]=title&filter['category_id']=1&filter[withOrder]=recent  
+      传入 Params
+      ```
+      filter[title]: title
+      filter[category_id]: 1
+      filter[withOrder]: recent
+      ```
+      - 结果为：
+        ```
+        {
+            "data": [
+                {
+                    "id": 100,
+                    "title": "title-update11",
+                    "body": "<p>body-update</p>",
+                    "user_id": 4,
+                    "category_id": 3,
+                    "reply_count": 0,
+                    "view_count": 0,
+                    "last_reply_user_id": 0,
+                    "order": 0,
+                    "excerpt": "body-update",
+                    "slug": "aperiam-accusantium-non-consequatur-mollitia-beatae-ab-nisi-et",
+                    "created_at": "2020-06-30 20:27:36",
+                    "updated_at": "2020-07-28 20:32:24"
+                }
+            ],
+            "links": {
+                "first": "http://laravel3.0.test/api/v1/topics?page=1",
+                "last": "http://laravel3.0.test/api/v1/topics?page=1",
+                "prev": null,
+                "next": null
+            },
+            "meta": {
+                "current_page": 1,
+                "from": 1,
+                "last_page": 1,
+                "path": "http://laravel3.0.test/api/v1/topics",
+                "per_page": 15,
+                "to": 1,
+                "total": 1
+            }
+        }
+        ```
+- 6.查询日志（query 日志）
+  - 6.1 安装 [laravel-query-logger](https://packagist.org/packages/overtrue/laravel-query-logger)
+    ```
+    $ composer require overtrue/laravel-query-logger --dev
+    ```
+    - 你可能会发现现在的代码并没有通过 with 或者 load 预加载模型关系，那么会不会带来 N+1 问题呢。首先我们需要输出 sql 查询日志，laravel-query-logger 是一个查询日志组件，先来安装它
+  - 6.2 设置：config/logging.php:
+    ```
+    return [
+        ...
+        'query' => [
+            'enabled' => env('LOG_QUERY', false),
+            
+            // Only record queries that are slower than the following time
+            // Unit: milliseconds
+            'slower_than' => 0, 
+        ],
+    ];
+    ```
+    .env
+    ```
+    LOG_QUERY=true
+    ```
+  - 6.3 查看日志
+    ```
+    $ tail -f ./storage/logs/laravel.log
+    ```
+    请求接口后，在命令行中可看到查询日志
+    ```
+    [2020-07-29 12:21:27] local.DEBUG: [laravel3.0] [7.33ms] select count(*) as aggregate from `topics` | GET: /api/v1/topics?include=user,category  
+    [2020-07-29 12:21:27] local.DEBUG: [laravel3.0] [560μs] select * from `topics` order by `updated_at` desc limit 15 offset 0 | GET: /api/v1/topics?include=user,category  
+    [2020-07-29 12:21:27] local.DEBUG: [laravel3.0] [410μs] select * from `users` where `users`.`id` in (1, 3, 4, 6, 8, 9, 10) | GET: /api/v1/topics?include=user,category  
+    [2020-07-29 12:21:27] local.DEBUG: [laravel3.0] [360μs] select * from `categories` where `categories`.`id` in (1, 2, 3, 4) | GET: /api/v1/topics?include=user,category 
+    ```
+    并没有产生 N+1 问题，QueryBuilder 扩展包已经帮助我们进行了预加载。
+- 7.个人话题
+  - 7.1 添加路由 routes/api.php
+    ```
+    // 分类列表
+    Route::get('categories', 'CategoriesController@index')
+        ->name('categories.index');
+    // 某个用户发布的话题
+    Route::get('users/{user}/topics', 'TopicsController@userIndex')
+        ->name('users.topics.index');
+    ```
+  - 7.2 修改 app/Http/Controllers/Api/TopicsController.php
+    ```
+    use App\Models\User;
+    ...
+      public function userIndex(Request $request, User $user)
+      {
+          $query = $user->topics()->getQuery();
+
+          $topics = QueryBuilder::for($query)
+              ->allowedIncludes('user', 'category')
+              ->allowedFilters([
+                  'title',
+                  AllowedFilter::exact('category_id'),
+                  AllowedFilter::scope('withOrder')->default('recentReplied'),
+              ])
+              ->paginate();
+
+          return TopicResource::collection($topics);
+      }
+    ```
+  - 7.3 测试个人话题列表
+    - GET http://{{host}}/api/v1/users/:id/topics?include=category
+- 8.Git 版本控制
+  ```
+  git add -A
+  git commit -m '6.5 话题列表 include机制 搜索条件 查询日志（query日志）'
+```
