@@ -2652,4 +2652,70 @@
   ```
   git add -A
   git commit -m '6.5 话题列表 include机制 搜索条件 查询日志（query日志）'
-```
+  ```
+### 6.6 话题详情
+- 1.修改 app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function show(Topic $topic)
+  {
+      return new TopicResource($topic);
+  }
+  ```
+- 2.测试话题详情
+  - GET http://{{host}}/api/v1/topics/:id?include=user,category
+  - 结果中不包含用户和分类数据，这是因为路由模型绑定，已经解析出了topic模型，无法再include user 和 category 了。
+- 3.不使用路由模型绑定 app/Http/Controllers/Api/TopicsController.php
+  ```
+  public function show($topicId)
+  {
+      $topic = QueryBuilder::for(Topic::class)
+          ->allowedIncludes('user', 'category')
+          ->findOrFail($topicId);
+
+      return new TopicResource($topic);
+  }
+  ```
+- 4.测试「不适用路由模型绑定」的话题详情
+  - GET http://{{host}}/api/v1/topics/:id?include=user,category
+  - 测试结果可以 include 包含用户和分类数据：
+    ```
+    {
+        "id": 1,
+        "title": "A expedita alias eum consequuntur ducimus qui natus at.",
+        "body": "Illo hic laudantium quibusdam. Culpa incidunt accusamus nemo cum id deleniti earum sunt. Laborum eos non qui nemo. Omnis pariatur suscipit non nostrum.",
+        "user_id": 1,
+        "category_id": 2,
+        "reply_count": 0,
+        "view_count": 0,
+        "last_reply_user_id": 0,
+        "order": 0,
+        "excerpt": "A expedita alias eum consequuntur ducimus qui natus at.",
+        "slug": null,
+        "created_at": "2020-07-03 07:33:03",
+        "updated_at": "2020-07-11 20:06:56",
+        "user": {
+            "id": 1,
+            "name": "andy",
+            "email_verified_at": "2020-07-27 19:01:50",
+            "created_at": "1972-04-23 05:28:59",
+            "updated_at": "2020-07-28 16:25:53",
+            "avatar": "http://laravel3.0.test/uploads/images/topics/202007/28/1_1595919513_7DrP0smiFX.jpg",
+            "introduction": "Vel quia vel excepturi possimus.",
+            "notification_count": 0,
+            "last_actived_at": "1972-04-22T21:28:59.000000Z",
+            "bound_phone": false,
+            "bound_wechat": false
+        },
+        "category": {
+            "id": 2,
+            "name": "教程",
+            "description": "开发技巧、推广扩展包等",
+            "post_count": 0
+        }
+    }
+    ```
+- 5.Git 版本控制
+  ```
+  git add -A
+  git commit -m '6.6 话题详情 不用路由模型绑定'
+  ```

@@ -80,4 +80,21 @@ class TopicsController extends Controller
         
         return TopicResource::collection($topics);
     }
+
+    // 路由模型绑定
+    // public function show(Topic $topic)
+    // {
+    //     return new TopicResource($topic);
+    // }
+
+    // 不使用路由模型绑定
+    public function show($topicId)
+    {
+        $topic = QueryBuilder::for(Topic::class)
+            ->allowedIncludes('user', 'category')
+            ->findOrFail($topicId);
+
+        return new TopicResource($topic);
+    }  
+
 }
