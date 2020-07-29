@@ -3052,7 +3052,7 @@
           ];
       }
       ```
-  - 1.5 测试：增加 include=user 再次测试个人话题列表
+  - 1.5 测试：增加 include=user 再次测试话题的回复列表
     - GET http://{{host}}/api/v1/topics/:id/replies?include=user
     - 结果为包含了用户信息：
       ```
@@ -3235,4 +3235,39 @@
   ```
   git add -A
   git commit -m '7.4 消息通知列表'
+  ```
+### 7.5 未读消息统计
+- 1.增加路由 routes/api.php
+  ```
+  // 通知列表
+  Route::get('notifications', 'NotificationsController@index')
+      ->name('notifications.index');
+  // 通知统计
+  Route::get('notifications/stats', 'NotificationsController@stats')
+      ->name('notifications.stats');
+  ```
+  - stats 是 statistics 的缩写，意思是统计
+- 2.修改 app/Http/Controllers/Api/NotificationsController.php
+  ```
+  public function stats(Request $request)
+  {
+      return response()->json([
+          'unread_count' => $request->user()->notification_count,
+      ]);
+  }
+  ```
+  - User 模型中 notify() 方法会将 notification_count 进行 +1。所以 $this->user()->notification_count; 就是用户未读消息数。
+- 3.测试未读消息统计
+  - GET http://{{host}}/api/v1/notifications/stats  
+    - 需登录 Header(Authorization)
+  - 结果为：200 OK
+    ```
+    {
+        "unread_count": 12
+    }
+    ```
+- 4.Git 版本控制
+  ```
+  git add -A
+  git commit -m '7.5 消息通知统计'
   ```
