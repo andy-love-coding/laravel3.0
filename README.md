@@ -2903,3 +2903,37 @@
   git add -A
   git commit -m '7.1 话题回复'
   ```
+### 7.2 删除回复
+- 1.添加路由 routes/api.php
+  ```
+  // 发布回复
+  Route::post('topics/{topic}/replies', 'RepliesController@store')
+      ->name('topics.replies.store');
+  // 删除回复
+  Route::delete('topics/{topic}/replies/{reply}', 'RepliesController@destroy')
+      ->name('topics.replies.destroy');
+  ```
+- 2.修改 app/Http/Controllers/Api/RepliesController.php
+  ```
+  public function destroy(Topic $topic, Reply $reply)
+  {
+      if ($reply->topic_id != $topic->id) {
+          abort(404);
+      }
+
+      $this->authorize('destroy', $reply);
+      $reply->delete();
+
+      return response(null, 204);
+  }
+  ```
+  - 这里的 destroy 使用的是已存在的 授权策略 
+- 3.测试删除话题
+  - DELETE http://{{host}}/api/v1/topics/:id/replies/:pid
+  - 用非管理员账号，删除一个不是自己的回复，报错：403 Forbidden
+  - 删除自己的回复，返回：240 No Content
+- 4.Git版本控制
+  ```
+  git add -A
+  git commit -m '7.2 删除回复'
+  ```
