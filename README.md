@@ -3135,3 +3135,104 @@
   git add -A
   git commit -m '7.3 回复列表'
   ```
+### 7.4 消息通知列表
+- 1.增加路由 routes/api.php
+  ```
+  // 删除回复
+  Route::delete('topics/{topic}/replies/{reply}', 'RepliesController@destroy')
+      ->name('topics.replies.destroy');
+  // 通知列表
+  Route::get('notifications', 'NotificationsController@index')
+      ->name('notifications.index');
+  ```
+- 2.2. 增加 NotificationResource
+  ```
+  $ php artisan make:resource NotificationResource
+  ```
+  app/Http/Resources/NotificationResource.php
+  ```
+  public function toArray($request)
+  {
+      return[
+          'id' => $this->id,
+          'type' => $this->type,
+          'data' => $this->data,
+          'read_at' => (string) $this->read_at ?: null,
+          'created_at' => (string) $this->created_at,
+      ];
+  }
+  ```
+- 3.增加 NotificationsController
+  ```
+  $ php artisan make:controller Api/NotificationsController
+  ```
+  app/Http/Controllers/Api/NotificationsController.php
+  ```
+  <?php
+
+  namespace App\Http\Controllers\Api;
+
+  use Illuminate\Http\Request;
+  use App\Http\Resources\NotificationResource;
+
+  class NotificationsController extends Controller
+  {
+      public function index(Request $request)
+      {
+          $notifications = $request->user()->notifications()->paginate();
+
+          return NotificationResource::collection($notifications);
+      }
+  }
+  ```
+  - 用户模型的 notifications() 方法是 Notifiable Trait 为我们提供的方法，按通知创建时间倒叙排序。
+- 4.测试消息通知列表
+  - GET http://{{host}}/api/v1/notifications  
+    - 需登录 Header(Authorization)
+  - 结果为：
+    ```
+    {
+        "data": [
+            {
+                "id": "e14b893c-ecaf-4ede-9a96-4e73323920f2",
+                "type": "App\\Notifications\\TopicReplied",
+                "notifiable_type": "App\\Models\\User",
+                "notifiable_id": 1,
+                "data": {
+                    "reply_id": 1012,
+                    "reply_content": "<p>reply113</p>",
+                    "user_id": 8,
+                    "user_name": "TrystanLehner",
+                    "user_avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png",
+                    "topic_link": "http://laravel3.0.test/topics/1/a-expedita-alias-eum-consequuntur-ducimus-qui-natus-at?#reply1012",
+                    "topic_id": 1,
+                    "topic_title": "A expedita alias eum consequuntur ducimus qui natus at."
+                },
+                "read_at": null,
+                "created_at": "2020-07-29 14:48:45",
+                "updated_at": "2020-07-29 14:48:45"
+            },
+            ...
+        ],
+        "links": {
+            "first": "http://laravel3.0.test/api/v1/notifications?page=1",
+            "last": "http://laravel3.0.test/api/v1/notifications?page=1",
+            "prev": null,
+            "next": null
+        },
+        "meta": {
+            "current_page": 1,
+            "from": 1,
+            "last_page": 1,
+            "path": "http://laravel3.0.test/api/v1/notifications",
+            "per_page": 15,
+            "to": 11,
+            "total": 11
+        }
+    }
+    ```
+- 5.Git 版本控制
+  ```
+  git add -A
+  git commit -m '7.4 消息通知列表'
+  ```
