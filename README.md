@@ -2616,7 +2616,7 @@
     [2020-07-29 12:21:27] local.DEBUG: [laravel3.0] [360μs] select * from `categories` where `categories`.`id` in (1, 2, 3, 4) | GET: /api/v1/topics?include=user,category 
     ```
     并没有产生 N+1 问题，QueryBuilder 扩展包已经帮助我们进行了预加载。
-- 7.个人话题
+- 7.个人话题列表
   - 7.1 添加路由 routes/api.php
     ```
     // 分类列表
@@ -2718,4 +2718,188 @@
   ```
   git add -A
   git commit -m '6.6 话题详情 不用路由模型绑定'
+  ```
+## 7 回复数据
+### 7.1 话题回复
+- 1.增加路由 routes/api.php
+  ```
+  // 发布话题
+  Route::resource('topics', 'TopicsController')->only([
+      'store', 'update', 'destroy'
+  ]);
+  // 发布回复
+  Route::post('topics/{topic}/replies', 'RepliesController@store')
+      ->name('topics.replies.store');
+  ```
+- 2.增加 ReplyRequest
+  ```
+  $ php artisan make:request Api/ReplyRequest
+  ```
+  app/Http/Requests/Api/ReplyRequest.php
+  ```
+  public function rules()
+  {
+      return [
+          'content' => 'required|min:2',
+      ];
+  }
+  ```
+- 3.增加 ReplyResource
+  ```
+  php artisan make:resource ReplyResource
+  ```
+  app/Http/Resources/ReplyResource.php
+  ```
+  public function toArray($request)
+  {
+      // return parent::toArray($request);
+      return [
+          'id' => $this->id,
+          'user_id' => (int) $this->user_id,
+          'topic_id' => (int) $this->topic_id,
+          'content' => $this->content,
+          'created_at' => (string) $this->created_at,
+          'updated_at' => (string) $this->updated_at,
+      ];
+  }
+  ```
+- 4.增加 RepliesController
+  ```
+  php artisan make:controller Api/RepliesController
+  ```
+  app/Http/Controllers/Api/RepliesController.php
+  ```
+  public function store(ReplyRequest $request, Topic $topic, Reply $reply)
+  {
+      $reply->content = $request->content;
+      $reply->topic()->associate($topic);
+      $reply->user()->associate($request->user());
+      $reply->save();
+
+      return new ReplyResource($reply);
+  }
+  ```
+- 5.测试添加回复
+  - POST http://{{host}}/api/v1/topics/:id/replies
+    - 传参 Body(form-data)
+      ```
+      content: reply
+      ```
+  - 当 app/Http/Resources/ReplyResource.php 为
+    ```
+    public function toArray($request)
+    {
+        // return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'user_id' => (int) $this->user_id,
+            'topic_id' => (int) $this->topic_id,
+            'content' => $this->content,
+            'created_at' => (string) $this->created_at,
+            'updated_at' => (string) $this->updated_at,
+        ];
+    }
+    ```
+    结果为：
+    ```
+    {
+        "id": 1007,
+        "user_id": 8,
+        "topic_id": 1,
+        "content": "<p>reply</p>",
+        "created_at": "2020-07-29 14:25:20",
+        "updated_at": "2020-07-29 14:25:20"
+    }
+    ```
+  - 当 app/Http/Resources/ReplyResource.php 为
+    ```
+    public function toArray($request)
+    {
+        return parent::toArray($request);
+        // return [
+        //     'id' => $this->id,
+        //     'user_id' => (int) $this->user_id,
+        //     'topic_id' => (int) $this->topic_id,
+        //     'content' => $this->content,
+        //     'created_at' => (string) $this->created_at,
+        //     'updated_at' => (string) $this->updated_at,
+        // ];
+    }
+    ```
+    结果为：
+    ```
+    {
+        "content": "<p>reply112</p>",
+        "topic_id": 1,
+        "user_id": 8,
+        "updated_at": "2020-07-29 14:27:30",
+        "created_at": "2020-07-29 14:27:30",
+        "id": 1009,
+        "topic": {
+            "id": 1,
+            "title": "A expedita alias eum consequuntur ducimus qui natus at.",
+            "body": "<p>Illo hic laudantium quibusdam. Culpa incidunt accusamus nemo cum id deleniti earum sunt. Laborum eos non qui nemo. Omnis pariatur suscipit non nostrum.</p>",
+            "user_id": 1,
+            "category_id": 2,
+            "reply_count": 21,
+            "view_count": 0,
+            "last_reply_user_id": 0,
+            "order": 0,
+            "excerpt": "Illo hic laudantium quibusdam. Culpa incidunt accusamus nemo cum id deleniti earum sunt. Laborum eos non qui nemo. Omnis pariatur suscipit non nostrum.",
+            "slug": "a-expedita-alias-eum-consequuntur-ducimus-qui-natus-at",
+            "created_at": "2020-07-03 07:33:03",
+            "updated_at": "2020-07-29 14:27:30",
+            "user": {
+                "id": 1,
+                "name": "andy",
+                "phone": null,
+                "email": "test@larabbs.com",
+                "email_verified_at": "2020-07-27 19:01:50",
+                "created_at": "1972-04-23 05:28:59",
+                "updated_at": "2020-07-29 14:26:34",
+                "avatar": "http://laravel3.0.test/uploads/images/topics/202007/28/1_1595919513_7DrP0smiFX.jpg",
+                "introduction": "Vel quia vel excepturi possimus.",
+                "notification_count": 9,
+                "last_actived_at": "1972-04-22T21:28:59.000000Z"
+            }
+        },
+        "user": {
+            "id": 8,
+            "name": "TrystanLehner",
+            "phone": null,
+            "email": "fidel.runolfsdottir@example.net",
+            "email_verified_at": "2020-07-27 19:01:50",
+            "created_at": "2014-06-04 04:29:52",
+            "updated_at": "2014-06-04 04:29:52",
+            "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/ZqM7iaP4CR.png",
+            "introduction": "Alias ab cumque in molestiae et.",
+            "notification_count": 0,
+            "last_actived_at": "2014-06-03T20:29:52.000000Z"
+        }
+    }
+    ```
+  - 说明：`return parent::toArray($request);` 返回的是一个数组，「数组的结构」 与 「$request（资源入参）的结构」相同。
+  - 测试时注意：由于开启了「话题回复，邮件通知作者」的功能，且没有启用队列异步通知时，此时调用回复接口会报错：
+    ```
+    Expected response code 250 but got code \"530\", with message \"530 5.7.1 Authentication required
+    ```
+    - 解决办法：
+      - 办法一：通知启用队列 .env
+        ```
+        QUEUE_CONNECTION=redis
+        ```
+      - 办法二：设置正常的邮件通知
+      - 办法三：不进行邮件通知 app/Notifications/TopicReplied.php
+        ```
+        public function via($notifiable)
+        {
+            // 开通通知的频道
+            // return ['database', 'mail'];
+            return ['database'];
+        }
+        ```
+- 6.Git 版本控制
+  ```
+  git add -A
+  git commit -m '7.1 话题回复'
   ```
