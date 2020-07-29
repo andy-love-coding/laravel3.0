@@ -3271,3 +3271,41 @@
   git add -A
   git commit -m '7.5 消息通知统计'
   ```
+### 7.6 标记通知为已读
+- 1.增加路由 routes/api.php
+  ```
+  // 通知统计
+  Route::get('notifications/stats', 'NotificationsController@stats')
+      ->name('notifications.stats');
+  // 标记消息通知为已读
+  Route::patch('user/read/notifications', 'NotificationsController@read')
+      ->name('user.notifications.read');
+  ```
+- 2.修改 app/Http/Controllers/Api/NotificationsController.php
+  ```
+  public function read(Request $request)
+  {
+      $request->user()->markAsRead();
+
+      return response(null, 204);
+  }
+  ```
+  - markAsRead() 在 app\Models\User.php 中有定义：
+    ```
+    public function markAsRead()
+    {
+        $this->notification_count = 0;
+        $this->save();
+        $this->unreadNotifications->markAsRead();
+    }
+    ```
+- 3.测试：将用户所有消息标记为已读
+  - PATCH http://{{host}}/api/v1/user/read/notifications
+    - 需登录 Header(Authorization)
+  - 结果为：204 No Content
+- 4.Git 版本控制
+  ```
+  git add -A
+  git commit -m '7.6 标记消息为已读'
+  ```
+
