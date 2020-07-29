@@ -7,6 +7,8 @@ use App\Models\Reply;
 use Illuminate\Http\Request;
 use App\Http\Resources\ReplyResource;
 use App\Http\Requests\Api\ReplyRequest;
+use App\Http\Queries\ReplyQuery;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class RepliesController extends Controller
 {
@@ -30,5 +32,25 @@ class RepliesController extends Controller
         $reply->delete();
 
         return response(null, 204);
+    }
+
+    // public function index(Topic $topic)
+    // {
+    //     $replies = $topic->replies()->paginate();
+
+    //     return ReplyResource::collection($replies);
+    // }
+    public function index($topicId, ReplyQuery $query)
+    {
+        $replies = $query->where('topic_id', $topicId)->paginate();
+
+        return ReplyResource::collection($replies);
+    }
+
+    public function userIndex($userId, ReplyQuery $query)
+    {
+        $replies = $query->where('user_id', $userId)->paginate();
+
+        return ReplyResource::collection($replies);
     }
 }

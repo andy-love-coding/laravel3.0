@@ -2781,6 +2781,7 @@
   ```
 - 5.测试添加回复
   - POST http://{{host}}/api/v1/topics/:id/replies
+    - 需登录 Header(Authorization)
     - 传参 Body(form-data)
       ```
       content: reply
@@ -2929,11 +2930,208 @@
   ```
   - 这里的 destroy 使用的是已存在的 授权策略 
 - 3.测试删除话题
-  - DELETE http://{{host}}/api/v1/topics/:id/replies/:pid
+  - DELETE http://{{host}}/api/v1/topics/:id/replies/:pid   
+    - 需登录 Header(Authorization)
   - 用非管理员账号，删除一个不是自己的回复，报错：403 Forbidden
   - 删除自己的回复，返回：240 No Content
 - 4.Git版本控制
   ```
   git add -A
   git commit -m '7.2 删除回复'
+  ```
+### 7.3 回复列表
+- 1.某个话题的回复列表
+  - 1.1 添加路由 routes/api.php
+    ```
+    // 话题列表，详情
+    Route::resource('topics', 'TopicsController')->only([
+        'index', 'show'
+    ]);
+    // 话题回复列表
+    Route::get('topics/{topic}/replies', 'RepliesController@index')
+        ->name('topics.replies.index');
+    ```
+  - 1.2 修改 app/Http/Controllers/Api/RepliesController.php
+    ```
+    public function index(Topic $topic)
+    {
+        $replies = $topic->replies()->paginate();
+
+        return ReplyResource::collection($replies);
+    }
+    ```
+  - 1.3 测试某个话题的回复列表
+    - GET http://{{host}}/api/v1/topics/:id/replies
+    - 结果为(没有 include 参数)：
+      ```
+      {
+          "data": [
+              {
+                  "id": 8,
+                  "user_id": 9,
+                  "topic_id": 1,
+                  "content": "Quos tempora cupiditate qui voluptate incidunt esse.",
+                  "created_at": "2020-06-30 02:37:43",
+                  "updated_at": "2020-06-30 02:37:43"
+              },
+              ...
+          ],
+          "links": {
+              "first": "http://laravel3.0.test/api/v1/topics/1/replies?page=1",
+              "last": "http://laravel3.0.test/api/v1/topics/1/replies?page=2",
+              "prev": null,
+              "next": "http://laravel3.0.test/api/v1/topics/1/replies?page=2"
+          },
+          "meta": {
+              "current_page": 1,
+              "from": 1,
+              "last_page": 2,
+              "path": "http://laravel3.0.test/api/v1/topics/1/replies",
+              "per_page": 15,
+              "to": 15,
+              "total": 24
+          }
+      }
+      ```
+  - 1.4 [调整 Include 参数 (继承QueryBuilder)](https://learnku.com/courses/laravel-advance-training/6.x/reply-list/5727#05c0f4)  
+    - 1.4.1 新建一个 ReplyQuery（）
+      ```
+      $ touch app/Http/Queries/ReplyQuery.php
+      ```
+    - 1.4.2 编辑 app/Http/Queries/ReplyQuery.php
+      ```
+      <?php
+
+      namespace App\Http\Queries;
+
+      use App\Models\Reply;
+      use Spatie\QueryBuilder\QueryBuilder;
+      use Spatie\QueryBuilder\AllowedFilter;
+
+      class ReplyQuery extends QueryBuilder
+      {
+          public function __construct()
+          {
+              // parent 指的是 QueryBuilder
+              // Reply::query() 是 Reply 模型的查询构建器
+              // 词句表示：构建了一个 Reply 模型的查询构建器
+              parent::__construct(Reply::query());
+
+              $this->allowedIncludes('user', 'topic');
+          }
+      }
+      ```
+      - Reply::query() 是 Reply 模型的查询构建器
+      - ReplyQuery 继承 QueryBuilder，它们都是查询构建器。
+      - `parent::__construct(Reply::query());` 其中 parent 指 QueryBuilder，执行__construct() 构造一个 Reply 的查询构建器。
+      - 在 ReplyQuery 中封装QueryBuilder，在其中设置include参数
+    - 1.4.3 修改控制器 app/Http/Controllers/Api/RepliesController.php
+      ```
+      use App\Http\Queries\ReplyQuery;
+      ...
+        public function index($topicId, ReplyQuery $query)
+        {
+            $replies = $query->where('topic_id', $topicId)->paginate();
+
+            return ReplyResource::collection($replies);
+        }
+      ```
+    - 1.4.4 修改 app/Http/Resources/ReplyResource.php
+      ```
+      public function toArray($request)
+      {
+          return [
+              'id' => $this->id,
+              'user_id' => (int) $this->user_id,
+              'topic_id' => (int) $this->topic_id,
+              'content' => $this->content,
+              'created_at' => (string) $this->created_at,
+              'updated_at' => (string) $this->updated_at,
+              'user' => new UserResource($this->whenLoaded('user')),
+              'topic' => new TopicResource($this->whenLoaded('topic')),
+          ];
+      }
+      ```
+  - 1.5 测试：增加 include=user 再次测试个人话题列表
+    - GET http://{{host}}/api/v1/topics/:id/replies?include=user
+    - 结果为包含了用户信息：
+      ```
+      {
+          "data": [
+              {
+                  "id": 8,
+                  "user_id": 9,
+                  "topic_id": 1,
+                  "content": "Quos tempora cupiditate qui voluptate incidunt esse.",
+                  "created_at": "2020-06-30 02:37:43",
+                  "updated_at": "2020-06-30 02:37:43",
+                  "user": {
+                      "id": 9,
+                      "name": "Gavin Torphy",
+                      "email_verified_at": "2020-07-27 19:01:50",
+                      "created_at": "1979-05-27 15:51:12",
+                      "updated_at": "1979-05-27 15:51:12",
+                      "avatar": "https://cdn.learnku.com/uploads/images/201710/14/1/NDnzMutoxX.png",
+                      "introduction": "Est est excepturi totam facilis quae qui omnis.",
+                      "notification_count": 0,
+                      "last_actived_at": "1979-05-27T07:51:12.000000Z",
+                      "bound_phone": false,
+                      "bound_wechat": false
+                  }
+              },
+              ...
+      ``` 
+- 2.某个用户的回复列表
+  - 2.1 添加路由 routes/api.php 
+    ```
+    // 话题回复列表
+    Route::get('topics/{topic}/replies', 'RepliesController@index')
+        ->name('topics.replies.index');
+    // 某个用户的回复列表
+    Route::get('users/{user}/replies', 'RepliesController@userIndex')
+        ->name('users.replies.index');
+    ```
+  - 2.2 修改 app/Http/Controllers/Api/RepliesController.php
+    ```
+    public function userIndex($userId, ReplyQuery $query)
+    {
+        $replies = $query->where('user_id', $userId)->paginate();
+
+        return ReplyResource::collection($replies);
+    }
+    ```
+  - 2.3 测试某个用户的回复列表
+    - GET http://{{host}}/api/v1/users/:id/replies?include=topic
+    - 结果：
+      ```
+      {
+          "data": [
+              {
+                  "id": 16,
+                  "user_id": 2,
+                  "topic_id": 93,
+                  "content": "Illo eum maiores aut recusandae fuga fugit sequi.",
+                  "created_at": "2020-07-16 14:55:02",
+                  "updated_at": "2020-07-16 14:55:02",
+                  "topic": {
+                      "id": 93,
+                      "title": "Velit omnis esse atque molestias et et animi.",
+                      "body": "Eius eos illo ipsam odit voluptatibus. Hic earum expedita aspernatur necessitatibus. Itaque voluptate esse nulla. Repellendus tenetur nesciunt accusamus voluptatem ut nisi excepturi.",
+                      "user_id": 3,
+                      "category_id": 4,
+                      "reply_count": 0,
+                      "view_count": 0,
+                      "last_reply_user_id": 0,
+                      "order": 0,
+                      "excerpt": "Velit omnis esse atque molestias et et animi.",
+                      "slug": null,
+                      "created_at": "2020-07-02 21:34:02",
+                      "updated_at": "2020-07-19 15:33:48"
+                  }
+              },
+      ```
+- 3.Git 版本控制
+  ```
+  git add -A
+  git commit -m '7.3 回复列表'
   ```
