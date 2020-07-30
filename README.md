@@ -3665,3 +3665,28 @@
   git add -A
   git commit -m "9.1 推荐资源列表"
   ```
+### 9.2 活跃用户接口
+- 1.添加路由(游客可访问) routes/api.php
+  ```
+  // 资源推荐
+  Route::get('links', 'LinksController@index')
+      ->name('links.index');
+  // 活跃用户
+  Route::get('actived/users', 'UsersController@activedIndex')
+      ->name('actived.users.index');
+  ```
+- 2.修改 app/Http/Controllers/Api/UsersController.php
+  ```
+  public function activedIndex(User $user)
+  {
+      UserResource::wrap('data');
+      return UserResource::collection($user->getActiveUsers());
+  }
+  ```
+- 3.测试：活跃用户列表
+  - GET http://{{host}}/api/v1/actived/users
+- 4.Git版本控制
+  ```
+  $ git add -A
+  $ git commit -m '9.2 活跃用户'
+  ```
