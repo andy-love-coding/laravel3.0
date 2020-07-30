@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Requests\Api\UserRequest;
 use Illuminate\Auth\AuthenticationException;
 use App\Models\Image;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class UsersController extends Controller
 {
@@ -36,11 +37,17 @@ class UsersController extends Controller
         return (new UserResource($user))->showSensitiveFields();
     }
 
-    public function show(User $user, Request $request)
+    // public function show(User $user, Request $request)
+    public function show($userId, Request $request)
     {
+        // return new UserResource($suer);
+        $user = QueryBuilder::for(User::class)
+            ->allowedIncludes('roles')
+            ->findOrFail($userId);
         return new UserResource($user);
     }
 
+    // 当前登录用户信息
     public function me(Request $request)
     {
         return (new UserResource($request->user()))->showSensitiveFields();

@@ -9,6 +9,7 @@ use App\Http\Requests\Api\TopicRequest;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use App\Models\User;
+use App\Http\Queries\TopicQuery;
 
 class TopicsController extends Controller
 {
@@ -39,7 +40,7 @@ class TopicsController extends Controller
         return response(null, 204);
     }
 
-    public function index(Request $request, Topic $topic)
+    public function index(Request $request, Topic $topic, TopicQuery $query)
     {
         // $query 是 Topic 模型的查询构建器
         // $query = $topic->query();
@@ -53,31 +54,35 @@ class TopicsController extends Controller
         //         ->withOrder($request->order)
         //         ->paginate(20);
 
-        $topics = QueryBuilder::for(Topic::class)
-            ->allowedIncludes('user', 'category')
-            ->allowedFilters([
-                'title',
-                AllowedFilter::exact('category_id'),
-                AllowedFilter::scope('withOrder')->default('recentReplied'),
-            ])
-            ->paginate();
+        // $topics = QueryBuilder::for(Topic::class)
+        //     ->allowedIncludes('user', 'user.roles','category')
+        //     ->allowedFilters([
+        //         'title',
+        //         AllowedFilter::exact('category_id'),
+        //         AllowedFilter::scope('withOrder')->default('recentReplied'),
+        //     ])
+        //     ->paginate();
 
+        $topics = $query->paginate();
+        
         return TopicResource::collection($topics);
     }
 
-    public function userIndex(Request $request, User $user)
+    public function userIndex(Request $request, User $user, TopicQuery $query)
     {
-        $query = $user->topics()->getQuery();
+        // $query = $user->topics()->getQuery();
 
-        $topics = QueryBuilder::for($query)
-            ->allowedIncludes('user', 'category')
-            ->allowedFilters([
-                'title',
-                AllowedFilter::exact('category_id'),
-                AllowedFilter::scope('withOrder')->default('recentReplied'),
-            ])
-            ->paginate();
+        // $topics = QueryBuilder::for($query)
+        //     ->allowedIncludes('user','user.roles', 'category')
+        //     ->allowedFilters([
+        //         'title',
+        //         AllowedFilter::exact('category_id'),
+        //         AllowedFilter::scope('withOrder')->default('recentReplied'),
+        //     ])
+        //     ->paginate();
         
+        $topics = $query->where('user_id', $user->id)->paginate();
+
         return TopicResource::collection($topics);
     }
 
@@ -88,11 +93,13 @@ class TopicsController extends Controller
     // }
 
     // 不使用路由模型绑定
-    public function show($topicId)
+    public function show($topicId, TopicQuery $query)
     {
-        $topic = QueryBuilder::for(Topic::class)
-            ->allowedIncludes('user', 'category')
-            ->findOrFail($topicId);
+        // $topic = QueryBuilder::for(Topic::class)
+        //     ->allowedIncludes('user', 'category')
+        //     ->findOrFail($topicId);
+
+        $topic = $query->findOrFail($topicId);
 
         return new TopicResource($topic);
     }  

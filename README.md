@@ -2675,7 +2675,7 @@
       return new TopicResource($topic);
   }
   ```
-- 4.测试「不适用路由模型绑定」的话题详情
+- 4.测试「不使用路由模型绑定」的话题详情
   - GET http://{{host}}/api/v1/topics/:id?include=user,category
   - 测试结果可以 include 包含用户和分类数据：
     ```
@@ -3405,4 +3405,216 @@
   ```
   git add -A
   git commit -m '8.2 用户权限列表'
+  ```
+### 8.3 用户角色
+- 1.增加 RoleResource
+  ```
+  $ php artisan make:resource RoleResource
+  ```
+  app/Http/Resources/RoleResource.php
+  ```
+  public function toArray($request)
+  {
+      return [
+          'id' => $this->id,
+          'name' => $this->name,
+      ];
+  }
+  ```
+- 2.修改 UserResource  
+  app/Http/Resources/UserResource.php
+  ```
+  public function toArray($request)
+  {
+      if (!$this->showSensitiveFields) {
+          $this->resource->addHidden(['phone', 'email']);
+      }
+
+      $data = parent::toArray($request);
+
+      $data['bound_phone'] = $this->resource->phone ? true : false;
+      $data['bound_wechat'] = ($this->resource->weixin_unionid || $this->resource->weixin_openid) ? true : false;
+      $data['roles'] = RoleResource::collection($this->whenloaded('roles'));
+      // dd($this); // 可得知 $this->resource 就是一个 User 模型实例
+
+      return $data;
+  }
+  ```
+- 3.修改 UsersController，时 users.show 包含角色
+  app/Http/Controller/Api/UsersController.php
+  ```
+  // public function show(User $user, Request $request)
+  public function show($userId, Request $request)
+  {
+      // return new UserResource($suer);
+      $user = QueryBuilder::for(User::class)
+          ->allowedIncludes('roles')
+          ->findOrFail($userId);
+      return new UserResource($user);
+  }
+  ```
+- 4.测试某个用户信息包含角色
+  - GET http://{{host}}/api/v1/users/:id?include=roles
+  - 结果为：
+    ```
+    {
+        "id": 1,
+        "name": "andy",
+        "email_verified_at": "2020-07-27 19:01:50",
+        "created_at": "1972-04-23 05:28:59",
+        "updated_at": "2020-07-29 20:59:00",
+        "avatar": "http://laravel3.0.test/uploads/images/topics/202007/28/1_1595919513_7DrP0smiFX.jpg",
+        "introduction": "Vel quia vel excepturi possimus.",
+        "notification_count": 0,
+        "last_actived_at": "1972-04-22T21:28:59.000000Z",
+        "roles": [
+            {
+                "id": 1,
+                "name": "Founder"
+            }
+        ],
+        "bound_phone": false,
+        "bound_wechat": false
+    }
+    ```
+- 5.提炼抽象出 TopicQuery
+  - 5.1 新建封装TopicQuery
+    ```
+    touch app/Http/Queries/TopicQuery.php
+    ```
+    app/Http/Queries/TopicQuery.php
+    ```
+    <?php
+
+    namespace App\Http\Queries;
+
+    use App\Models\Topic;
+    use Spatie\QueryBuilder\QueryBuilder;
+    use Spatie\QueryBuilder\AllowedFilter;
+
+    class TopicQuery extends QueryBuilder
+    {
+        public function __construct()
+        {
+          parent::__construct(Topic::query());
+
+          $this->allowedIncludes('user', 'user.roles', 'category')
+                ->allowedFilters([
+                    'title',
+                    AllowedFilter::exact('category_id'),
+                    AllowedFilter::scope('withOrder')->default('recentReplied'),
+                ]);
+        }
+    }
+    ```
+    - TopicQuery 继承了 QueryBuilder，并设置好了 include 和 filter 参数
+  - 5.2 修改 app/Http/Controllers/Api/TopicsController.php
+    ```
+    public function index(Request $request, Topic $topic, TopicQuery $query)
+    {
+        // $query 是 Topic 模型的查询构建器
+        // $query = $topic->query();
+
+        // if ($categoryId = $request->category_id) {
+        //     $query->where('category_id', $categoryId);
+        // }
+
+        // $topics = $query
+        //         ->with('user', 'category') // 预加载
+        //         ->withOrder($request->order)
+        //         ->paginate(20);
+
+        // $topics = QueryBuilder::for(Topic::class)
+        //     ->allowedIncludes('user', 'user.roles','category')
+        //     ->allowedFilters([
+        //         'title',
+        //         AllowedFilter::exact('category_id'),
+        //         AllowedFilter::scope('withOrder')->default('recentReplied'),
+        //     ])
+        //     ->paginate();
+
+        $topics = $query->paginate();
+        
+        return TopicResource::collection($topics);
+    }
+
+    public function userIndex(Request $request, User $user, TopicQuery $query)
+    {
+        // $query = $user->topics()->getQuery();
+
+        // $topics = QueryBuilder::for($query)
+        //     ->allowedIncludes('user','user.roles', 'category')
+        //     ->allowedFilters([
+        //         'title',
+        //         AllowedFilter::exact('category_id'),
+        //         AllowedFilter::scope('withOrder')->default('recentReplied'),
+        //     ])
+        //     ->paginate();
+        
+        $topics = $query->where('user_id', $user->id)->paginate();
+
+        return TopicResource::collection($topics);
+    }
+
+    public function show($topicId, TopicQuery $query)
+    {
+        // $topic = QueryBuilder::for(Topic::class)
+        //     ->allowedIncludes('user', 'category')
+        //     ->findOrFail($topicId);
+
+        $topic = $query->findOrFail($topicId);
+        return new TopicResource($topic);
+    }
+    ```
+- 6.测试：话题嵌套用户，用户嵌套角色
+  - 话题列表：GET http://{{host}}/api/v1/topics?include=user.roles,category
+  - 个人话题列表：GET http://{{host}}/api/v1/users/:id/topics?include=user.roles,category
+  - 话题详情：GET http://{{host}}/api/v1/topics/:id?include=user.roles,category
+  - 其结果都包含角色信息（话题-用户-角色：三级嵌套）
+    ```
+    {
+        "id": 1,
+        "title": "A expedita alias eum consequuntur ducimus qui natus at.",
+        "body": "<p>Illo hic laudantium quibusdam. Culpa incidunt accusamus nemo cum id deleniti earum sunt. Laborum eos non qui nemo. Omnis pariatur suscipit non nostrum.</p>",
+        "user_id": 1,
+        "category_id": 2,
+        "reply_count": 24,
+        "view_count": 0,
+        "last_reply_user_id": 0,
+        "order": 0,
+        "excerpt": "Illo hic laudantium quibusdam. Culpa incidunt accusamus nemo cum id deleniti earum sunt. Laborum eos non qui nemo. Omnis pariatur suscipit non nostrum.",
+        "slug": "a-expedita-alias-eum-consequuntur-ducimus-qui-natus-at",
+        "created_at": "2020-07-03 07:33:03",
+        "updated_at": "2020-07-29 14:48:44",
+        "user": {
+            "id": 1,
+            "name": "andy",
+            "email_verified_at": "2020-07-27 19:01:50",
+            "created_at": "1972-04-23 05:28:59",
+            "updated_at": "2020-07-29 20:59:00",
+            "avatar": "http://laravel3.0.test/uploads/images/topics/202007/28/1_1595919513_7DrP0smiFX.jpg",
+            "introduction": "Vel quia vel excepturi possimus.",
+            "notification_count": 0,
+            "last_actived_at": "1972-04-22T21:28:59.000000Z",
+            "roles": [
+                {
+                    "id": 1,
+                    "name": "Founder"
+                }
+            ],
+            "bound_phone": false,
+            "bound_wechat": false
+        },
+        "category": {
+            "id": 2,
+            "name": "教程",
+            "description": "开发技巧、推广扩展包等",
+            "post_count": 0
+        }
+    }
+    ```
+- 7.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '8.3 显示用户角色 封装TopicQuery'
   ```

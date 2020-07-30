@@ -19,6 +19,8 @@ class UserResource extends JsonResource
 
         $data['bound_phone'] = $this->resource->phone ? true : false;
         $data['bound_wechat'] = ($this->resource->weixin_unionid || $this->resource->weixin_openid) ? true : false;
+        $data['roles'] = RoleResource::collection($this->whenloaded('roles'));
+        // dd($this); // 可得知 $this->resource 就是一个 User 模型实例
 
         return $data;
     }
