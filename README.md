@@ -3406,7 +3406,7 @@
   git add -A
   git commit -m '8.2 用户权限列表'
   ```
-### 8.3 用户角色
+### 8.3 显示用户角色
 - 1.增加 RoleResource
   ```
   $ php artisan make:resource RoleResource
@@ -3617,4 +3617,51 @@
   ```
   $ git add -A
   $ git commit -m '8.3 显示用户角色 封装TopicQuery'
+  ```
+## 9 其他功能
+### 9.1 资源推荐接口
+- 1.添加路由(游客可访问) routes/api.php
+  ```
+  // 某个用户的回复列表
+  Route::get('users/{user}/replies', 'RepliesController@userIndex')
+      ->name('users.replies.index');
+  // 资源推荐
+  Route::get('links', 'LinksController@index')
+      ->name('links.index');
+  ```
+- 2.添加 LinkResource
+  ```
+  $ php artisan make:resource LinkResource
+  ```
+  app/Http/Resources/LinkResource.php
+  ```
+  public function toArray($request)
+  {
+      return [
+          'id' => $this->id,
+          'title' => $this->title,
+          'link' => $this->link,
+      ];
+  }
+  ```
+- 3.添加 LinksController
+  ```
+  $ php artisan make:controller Api/LinksController
+  ```
+  app/Http/Controllers/Api/LinksController.php
+  ```
+  public function index(Link $link)
+  {
+      $links = $link->getAllCached();
+
+      LinkResource::wrap('data');
+      return LinkResource::collection($links);
+  }
+  ```
+- 4.测试获取资源推荐列表
+  - GET http://{{host}}/api/v1/links
+- 5.Git 版本控制
+  ```
+  git add -A
+  git commit -m "9.1 推荐资源列表"
   ```
