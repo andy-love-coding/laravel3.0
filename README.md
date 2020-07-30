@@ -3308,4 +3308,101 @@
   git add -A
   git commit -m '7.6 标记消息为已读'
   ```
+## 8 权限控制
+### 8.2 权限列表
+- 0.权限列表
+  - 客户端可以在用户登录成功之后，请求 权限列表接口，缓存在本地，渲染页面的时候，根据用户权限，以及用户与资源的关系，来完成对页面显示的控制。
+  - 将用户权限请求后缓存在本地会不会引入安全问题呢？
+    - 我们知道客户端的一切都是可以通过某种途径修改的，例如反编译 APP 后，修改代码，将某个用户权限修改为站长拥有的所有权限。这样是不是就代表用户可以修改或删除所有的话题了呢？
+    - 其实不是的，客户端缓存的权限列表，只是用于控制界面显示。数据的操作权限是在服务器端，接口服务器在执行某个操作时，始终会判断用户权限。例如 TopicsController 中的代码：
+      ```
+      public function update(TopicRequest $request, Topic $topic)
+      {
+          $this->authorize('update', $topic);
 
+          $topic->update($request->all());
+          return new TopicResource($topic);
+      }
+      ```
+      authorize() 会找到 app/Policies/TopicPolicy.php
+      ```
+      public function update(User $user, Topic $topic)
+      {
+          return $user->isAuthorOf($topic);
+      }
+      ```
+      并且在这之前，还好判断基类授权策略：app/Policies/Policy.php
+      ```
+      public function before($user, $ability)
+      {
+            // 如果用户拥有管理内容权限的话，即授权通过
+            if ($user->can('manage_contents')) {
+                return true;
+            }
+      }
+      ```
+      所以：只要调用了 authorize() 授权策略，都会在服务端判断用户是否有权限；并不会接收客户端传过来的权限，客户端缓存的权限只用作客户端页面显示而已。
+- 1.添加路由 routes/api.php
+  ```
+  // 标记消息通知为已读
+  Route::patch('user/read/notifications', 'NotificationsController@read')
+      ->name('user.notifications.read');
+  // 当前登录用户权限
+  Route::get('user/permissions', 'PermissionsController@index')
+      ->name('user.permissions.index');
+  ```
+- 2.增加 PermissionResource
+  ```
+  $ php artisan make:resource PermissionResource
+  ```
+  app/Http/Resources/PermissionResource.php
+  ```
+  public function toArray($request)
+  {
+      return [
+          'id' => $this->id,
+          'name' => $this->name,
+      ];
+  }
+  ```
+- 3.增加 PermissionsController
+  ```
+  $ php artisan make:controller Api/PermissionsController
+  ```
+  app/Http/Controllers/Api/PermissionsController.php
+  ```
+  public function index(Request $request)
+  {
+      $permissions = $request->user()->getAllPermissions();
+
+      PermissionResource::wrap('data');
+      return PermissionResource::collection($permissions);
+  }
+  ```
+- 4.测试权限列表
+  - GET http://{{host}}/api/v1/user/permissions
+    - 需登录 Header(Authorization)
+  - 结果为：
+    ```
+    {
+        "data": [
+            {
+                "id": 1,
+                "name": "manage_contents"
+            },
+            {
+                "id": 2,
+                "name": "manage_users"
+            },
+            {
+                "id": 3,
+                "name": "edit_settings"
+            }
+        ]
+    }
+    ```
+- 5.Git 版本控制
+  ```
+  git add -A
+  git commit -m '8.2 用户权限列表'
+  ```
