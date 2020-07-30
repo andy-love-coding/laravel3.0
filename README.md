@@ -3690,3 +3690,199 @@
   $ git add -A
   $ git commit -m '9.2 活跃用户'
   ```
+### 9.3 本地化
+- 1.什么是本地化
+  - 这一节我们来实现接口的本地化。本地化主要的是客户端的工作，切换语言后，客户端显示不同的界面，例如下面就是微信 中文 和 英文 语言下的界面。
+- 2.本地化交给客户端(响应中添加自定义 code)
+  - 2.1 错误响应增加 code 参数
+    - 原来的 convertExceptionToArray() 方法中没有 code(即自定义错误码)，代码如下：  
+      vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php
+      ```
+      protected function convertExceptionToArray(Exception $e)
+      {
+          return config('app.debug') ? [
+              'message' => $e->getMessage(),
+              'exception' => get_class($e),
+              'file' => $e->getFile(),
+              'line' => $e->getLine(),
+              'trace' => collect($e->getTrace())->map(function ($trace) {
+                  return Arr::except($trace, ['args']);
+              })->all(),
+          ] : [
+              'message' => $this->isHttpException($e) ? $e->getMessage() : 'Server Error',
+          ];
+      }
+      ```
+    - 现在，在 app/Exceptions/Handler.php 中重写 convertExceptionToArray 方法，加入 code 参数  
+      app/Exceptions/Handler.php
+      ```
+      use Illuminate\Support\Arr;
+      ...
+        protected function convertExceptionToArray(Exception $e)
+        {
+            return config('app.debug') ? [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(), // 加入 code 参数
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => collect($e->getTrace())->map(function ($trace) {
+                    return Arr::except($trace, ['args']);
+                })->all(),
+            ] : [
+                'message' => $this->isHttpException($e) ? $e->getMessage() : 'Server Error',
+                'code' => $e->getCode(),
+            ];
+        }
+      ```
+  - 2.2 进行封装（基类控制器中封装带 code 的异常的响应方法 errorResponse()）
+    - 在 API 的基类控制器中：抛出异常，并且增加 code ，响应中就会自动增加 code。  
+      app/Http/Controllers/Api/Controller.php
+      ```
+      <?php
+
+      namespace App\Http\Controllers\Api;
+
+      use Illuminate\Http\Request;
+      use App\Http\Controllers\Controller as BaseController;
+      use Symfony\Component\HttpKernel\Exception\HttpException;
+
+      class Controller extends BaseController
+      {
+          public function errorResponse($statusCode, $message=null, $code=0)
+          {
+              throw new HttpException($statusCode, $message, null, [], $code);
+          }
+      }
+      ```
+      - 现在任意 API 控制器中直接使用 $this->errorResponse 抛出异常即可。
+  - 2.3 添加测试代码
+    - 测试代码：在 `发布话题` 接口的代码中增加下面的测试代码:  
+      app/Http/Controllers/Api/TopicsController.php
+      ```
+      public function store(TopicRequest $request, Topic $topic)
+      {
+          return $this->errorResponse(403, '您还没有通过认证', 1003);
+      ```
+    - PostMan 请求：POST http://{{host}}/api/v1/topics
+      - 需登录 Header(Authorization)
+      - Body (form-data)
+        ```
+        title: title-test
+        body: body-test
+        category_id: 1
+        ```
+      - 结果为：
+        ```
+        {
+            "message": "您还没有通过认证",
+            "code": 1003,
+            "exception": "Symfony\\Component\\HttpKernel\\Exception\\HttpException",
+            "file": "/home/vagrant/Code/laravel3.0/app/Http/Controllers/Api/Controller.php",
+            "line": 13,
+            "trace":[]
+        }
+        ```
+    - 测试完，还原测试代码
+      ```
+      $ git checkout app/Http/Controllers/Api/TopicsController.php
+      ```
+- 3.接口根据客户端语言切换错误信息
+  - 3.0 客户端需要在每次请求接口的时候增加参数，告诉接口支持的语言，可以利用 HTTP 的 Accept-Language 头信息。
+    - Accept-Language zh-CN —— 简体中文
+    - Accept-Language en —— 英文
+  - 3.1 增加中间件 middleware
+    ```
+    $ php artisan make:middleware ChangeLocale
+    ```
+    app/Http/Middleware/ChangeLocale.php
+    ```
+    public function handle($request, Closure $next)
+    {
+        $language = $request->header('accept-language');
+        if ($language) {
+            \App::setLocale($language);
+        }
+
+        return $next($request);
+    }
+    ```
+  - 3.2 注册中间件 app/Http/Kernel.php
+    ```
+    protected $routeMiddleware = [
+        ...
+        // 接口语言设置中间件
+        'change-locale' => \App\Http\Middleware\ChangeLocale::class,
+    ];
+    ```
+  - 3.3 给所有 API 路由用上中间件
+    ```
+    Route::prefix('v1')
+        ->namespace('Api')
+        ->middleware('change-locale')
+        ->name('api.v1.')
+        ->group(function () {
+    ```
+  - 3.4 测试
+    - 默认语言是简体中文：config/app.php 中设置了默认的语言为'locale' => 'zh-CN'
+    - 请求登录接口：http://{{host}}/api/v1/authorizations
+      - 情况一：不要 `accept-language` ，头密码只填3位，结果为 422 Unprocessable Entity
+        ```
+        {
+            "message": "The given data was invalid.",
+            "errors": {
+                "password": [
+                    "密码 至少为 6 个字符。"
+                ]
+            }
+        }
+        ```
+      - 情况二：增加 `accept-language` 头，值为 `en` ，密码只填3位，结果为 422 Unprocessable Entity
+        ```
+        {
+            "message": "The given data was invalid.",
+            "errors": {
+                "password": [
+                    "The password must be at least 6 characters."
+                ]
+            }
+        }
+        ```
+      - 情况三：增加 `accept-language` 头，值为 `en` ，密码只填错误的6位，结果为 401 Unauthorized
+        ```
+        {
+            "message": "用户名或密码错误"
+        }
+        ```
+  - 3.5.使用 trans() 方法
+    - 3.5.1 发现：测试的情况三，增加了 `accept-language` 头，值为 `en`，但没有被本地化，原因看一下代码：  
+      app/Http/Controllers/Api/AuthorizationsController.php
+      ```
+      if (!$token = \Auth::guard('api')->attempt($credentials)) {
+          throw new AuthenticationException('用户名或密码错误');
+      }
+      ```
+      因为直接使用了中文错误信息，可以用 trans() 方法
+      ```
+      if (!$token = \Auth::guard('api')->attempt($credentials)) {
+          throw new AuthenticationException(trans('auth.failed'));
+      }
+      ```
+    - 3.5.2 接着 3.4 小节再测试
+      - 情况四：增加 `accept-language` 头，值为 `en` ，密码只填错误的6位，结果为 401 Unauthorized
+        ```
+        {
+            "message": "These credentials do not match our records."
+        }
+        ```
+      - 情况五：不要 `accept-language` 头，密码只填错误的6位，结果为 401 Unauthorized
+        ```
+        {
+            "message": "用户名或密码错误"
+        }
+        ```
+- 4.Git 版本控制
+  ```
+  $ git add -A
+  $ git commit -m '9.3 本地化 trans()方法'
+  ```

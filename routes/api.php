@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 
 // 控制器（如：VerificationCodesController）放在了 Api 目录中， 所以还需要调整一下统一的命名空间，使用 namespace 方法即可
-Route::prefix('v1')->namespace('Api')->name('api.v1.')->group(function() {
+Route::prefix('v1')->namespace('Api')->middleware('change-locale')->name('api.v1.')->group(function() {
 
     Route::middleware('throttle:' . config('api.rate_limits.sign'))->group(function() {
         // 图片验证码
