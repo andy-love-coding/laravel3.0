@@ -71,8 +71,8 @@
   - [9,4 消息推送](https://github.com/andy-love-coding/laravel3.0#94-%E6%B6%88%E6%81%AF%E6%8E%A8%E9%80%81)
 - [10 API 测试和文档](https://github.com/andy-love-coding/laravel3.0#10-api-%E6%B5%8B%E8%AF%95%E5%92%8C%E6%96%87%E6%A1%A3)
 - [11 Oauth 认证--Passport](https://github.com/andy-love-coding/laravel3.0#11-oauth-%E8%AE%A4%E8%AF%81--passport)
-## 2 舞台布置
-### 2.2 安装 LaraBBS
+## 2 [舞台布置](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 2.2 [安装 LaraBBS](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.做好准备
   ```
   > cd ~/Homestead && vagrant up
@@ -153,7 +153,7 @@
   $ php artisan migrate --seed
   ```
 - 8.访问应用 laravel3.0.test
-### 2.5 Github 的 Restful HTTP API 设计分解
+### 2.5 [Github 的 Restful HTTP API 设计分解](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[用 HTTP 动词描述操作](https://learnku.com/courses/laravel-advance-training/6.x/follow-github-to-learn-restful-http-api-design/5697#4c69d4)
 
   - 幂等性，指一次和多次请求某一个资源应该具有同样的副作用，也就是一次访问与多次访问，对这个资源带来的变化是相同的。
@@ -183,7 +183,7 @@
   - 415 Unsupported Media Type - 如果请求中的内容类型是错误的
   - 422 Unprocessable Entity - 用来表示校验错误
   - 429 Too Many Requests - 由于请求频次达到上限而被拒绝访问
-### 2.7. API 基础环境
+### 2.7. [API 基础环境](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.接口版本控制
   - 1.1 先写2个测试接口 routes/api.php
     ```
@@ -265,10 +265,10 @@
   $ git add .
   $ git commit -m '2.7 API 基础配置'
   ```
-## 3 手机注册
-### 3.1 手机注册流程讲解
+## 3 [手机注册](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 3.1 [手机注册流程讲解](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
   - 1.[手机注册流程讲解](https://learnku.com/courses/laravel-advance-training/6.x/explanation-of-mobile-registration-process/5701)
-### 3.2 短信提供商
+### 3.2 [短信提供商](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.服务商注册 [阿里云](https://www.aliyun.com/product/sms?spm=5176.10695662.1128094.1.2a6b4beefNNW54&aly_as=hYtZKQhL)
   - 选择：短信服务 》国内消息 
     - 然后： 》签名管理 》添加签名
@@ -421,7 +421,7 @@
   $ git add -A
   $ git commit -m '3.2 短信调试'
   ```
-### 3.3 手机注册验证码
+### 3.3 [手机注册验证码](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.用户表添加手机字段
   ```
   $ php artisan make:migration add_phone_to_users_table --table=users
@@ -678,7 +678,7 @@
   $ git add -A
   $ git commit -m '3.3 发送短信验证码'
   ```
-### 3.4 构建用户注册接口
+### 3.4 [构建用户注册接口](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.新增路由 routes/api.php
   ```
   Route::prefix('v1')->namespace('Api')->name('api.v1.')->group(function () {
@@ -818,7 +818,7 @@
   $ git add -A
   $ git commit -m "3.4 用户注册接口"
   ```
-### 3.5 节流处理防止攻击
+### 3.5 [节流处理防止攻击](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[路由调用限流](https://learnku.com/docs/laravel/6.x/routing/5135#rate-limiting)
 - 2.增加配置
   ```
@@ -876,7 +876,7 @@
   $ git add -A
   $ git commit -m "3.5 频率限制" 
   ```
-### 3.6 图片验证码
+### 3.6 [图片验证码](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.安装 gregwar/captcha
   ```
   $ composer require gregwar/captcha
@@ -1072,10 +1072,10 @@
   $ git add -A
   $ git commit -m "3.6 图片验证码" 
   ```
-## 4 第三方登录
-### 4.1 微信登录流程讲解
+## 4 [第三方登录](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 4.1 [微信登录流程讲解](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - [OAutho 2.0 流程分析](https://learnku.com/courses/laravel-advance-training/6.x/process-explanation/5708)
-### 4.2 微信开发者账号申请
+### 4.2 [微信开发者账号申请](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[申请微信公众平台测试账号](https://learnku.com/courses/laravel-advance-training/6.x/wechat-developer-account-application/5709#b883b5)
 - 2.测试 OAuth 流程 [微信网页授权](https://developers.weixin.qq.com/doc/offiaccount/OA_Web_Apps/Wechat_webpage_authorization.html)  
   登录在微信开发者工具
@@ -1096,7 +1096,7 @@
   $ git add .
   $ git commit -m '4.1 4.2 微信登录开发前的准备及测试'
   ```
-### 4.3 微信登录
+### 4.3 [微信登录](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.安装 socialiteproviders  
   [socialiteproviders](https://socialiteproviders.netlify.app/) 为 Laravel Socialite 提供了更多的第三方登录方式，基本上你需要的，都能在这里找到。  
   - 1.1 首先找到 [微信的 provider](https://socialiteproviders.netlify.app/providers/weixin.html)，一步步完成安装。
@@ -1161,7 +1161,7 @@
   $ git add -A
   $ git commit -m "4.3 add socialiteproviders"
   ```
-### 4.4 微信登录功能开发
+### 4.4 [微信登录功能开发](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.为 users 表增加两个字段，weixin_openid，weixin_unionid。修改 password 字段为 nullable，因为第三方登录不需要密码。
   ```
   $ php artisan make:migration add_weixin_openid_to_users_table
@@ -1327,7 +1327,7 @@
   $ git add -A
   $ git commit -m "4.4 微信登录"
   ```
-### 4.5 登录 API 获取 JWT 令牌
+### 4.5 [登录 API 获取 JWT 令牌](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[什么是 JWT](https://learnku.com/courses/laravel-advance-training/6.x/mobile-login-api/5712#1d1fad)
 - 2.安装 jwt-auth
   ```
@@ -1584,7 +1584,7 @@
   $ git add -A
   $ git commit -m "4.5 登录后，下发 JWT 令牌"
   ```
-### 4.6 artisan 生成 token
+### 4.6 [artisan 生成 token](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.新增 command
   ```
    $ php artisan make:command GenerateToken
@@ -1643,8 +1643,8 @@
   $ git add -A
   $ git commit -m "4.6 用命令生成1年期的 jwt Token"
   ```
-## 5 用户数据
-### 5.1 获取用户信息
+## 5 [用户数据](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 5.1 [获取用户信息](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.添加路由 routes/api.php
   ```
   Route::middleware('throttle:' . config('api.rate_limits.access'))->group(function() {
@@ -1821,7 +1821,7 @@
   $ git add -A
   $ git commit -m '5.1 用户信息 屏蔽敏感信息 Resource开关'
   ```
-### 5.2 编辑用户信息
+### 5.2 [编辑用户信息](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.HTTP 提交数据有两种方式
   ```
   - application/x-www-form-urlencoded (默认值)
@@ -2093,8 +2093,8 @@
   $ git add -A
   $ git commit -m '5.2 编辑用户信息'
   ```
-## 6 帖子数据
-### 6.1 分类列表
+## 6 [帖子数据](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 6.1 [分类列表](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.添加路由 routes/api.php
   ```
   // 游客可以访问的接口
@@ -2236,7 +2236,7 @@
   $ git add -A
   $ git commit -m '6.1 分类列表'
   ```
-### 6.2 发布话题
+### 6.2 [发布话题](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加路由 routes/api.php  
   ```
   // 游客可以访问的接口
@@ -2323,7 +2323,7 @@
   $ git add -A
   $ git commit -m '6.2 发布话题'
   ```
-### 6.3 修改话题
+### 6.3 [修改话题](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.修改 TopicRequest  
   app/Http/Requests/Api/TopicRequest.php
   ```
@@ -2398,7 +2398,7 @@
   $ git add -A
   $ git commit -m '6.3 话题修改'
   ```
-### 6.4 删除话题
+### 6.4 [删除话题](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.修改 TopicController  
   app/Http/Controllers/Api/TopicsController.php
   ```
@@ -2425,7 +2425,7 @@
   $ git add -A
   $ git commit -m '6.4 删除话题'
   ```
-### 6.5 话题列表
+### 6.5 [话题列表](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.修改 TopicController  
   app/Http/Controllers/Api/TopicsController.php
   ```
@@ -2725,7 +2725,7 @@
   git add -A
   git commit -m '6.5 话题列表 include机制 搜索条件 查询日志（query日志）'
   ```
-### 6.6 话题详情
+### 6.6 [话题详情](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.修改 app/Http/Controllers/Api/TopicsController.php
   ```
   public function show(Topic $topic)
@@ -2791,8 +2791,8 @@
   git add -A
   git commit -m '6.6 话题详情 不用路由模型绑定'
   ```
-## 7 回复数据
-### 7.1 话题回复
+## 7 [回复数据](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 7.1 [话题回复](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加路由 routes/api.php
   ```
   // 发布话题
@@ -2976,7 +2976,7 @@
   git add -A
   git commit -m '7.1 话题回复'
   ```
-### 7.2 删除回复
+### 7.2 [删除回复](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.添加路由 routes/api.php
   ```
   // 发布回复
@@ -3011,7 +3011,7 @@
   git add -A
   git commit -m '7.2 删除回复'
   ```
-### 7.3 回复列表
+### 7.3 [回复列表](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.某个话题的回复列表
   - 1.1 添加路由 routes/api.php
     ```
@@ -3207,7 +3207,7 @@
   git add -A
   git commit -m '7.3 回复列表'
   ```
-### 7.4 消息通知列表
+### 7.4 [消息通知列表](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加路由 routes/api.php
   ```
   // 删除回复
@@ -3308,7 +3308,7 @@
   git add -A
   git commit -m '7.4 消息通知列表'
   ```
-### 7.5 未读消息统计
+### 7.5 [未读消息统计](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加路由 routes/api.php
   ```
   // 通知列表
@@ -3343,7 +3343,7 @@
   git add -A
   git commit -m '7.5 消息通知统计'
   ```
-### 7.6 标记通知为已读
+### 7.6 [标记通知为已读](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加路由 routes/api.php
   ```
   // 通知统计
@@ -3380,8 +3380,8 @@
   git add -A
   git commit -m '7.6 标记消息为已读'
   ```
-## 8 权限控制
-### 8.2 权限列表
+## 8 [权限控制](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 8.2 [权限列表](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 0.权限列表
   - 客户端可以在用户登录成功之后，请求 权限列表接口，缓存在本地，渲染页面的时候，根据用户权限，以及用户与资源的关系，来完成对页面显示的控制。
   - 将用户权限请求后缓存在本地会不会引入安全问题呢？
@@ -3478,7 +3478,7 @@
   git add -A
   git commit -m '8.2 用户权限列表'
   ```
-### 8.3 显示用户角色
+### 8.3 [显示用户角色](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.增加 RoleResource
   ```
   $ php artisan make:resource RoleResource
@@ -3690,8 +3690,8 @@
   $ git add -A
   $ git commit -m '8.3 显示用户角色 封装TopicQuery'
   ```
-## 9 其他功能
-### 9.1 资源推荐接口
+## 9 [其他功能](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
+### 9.1 [资源推荐接口](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.添加路由(游客可访问) routes/api.php
   ```
   // 某个用户的回复列表
@@ -3737,7 +3737,7 @@
   git add -A
   git commit -m "9.1 推荐资源列表"
   ```
-### 9.2 活跃用户接口
+### 9.2 [活跃用户接口](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.添加路由(游客可访问) routes/api.php
   ```
   // 资源推荐
@@ -3762,7 +3762,7 @@
   $ git add -A
   $ git commit -m '9.2 活跃用户'
   ```
-### 9.3 本地化
+### 9.3 [本地化](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.什么是本地化
   - 这一节我们来实现接口的本地化。本地化主要的是客户端的工作，切换语言后，客户端显示不同的界面，例如下面就是微信 中文 和 英文 语言下的界面。
 - 2.本地化交给客户端(响应中添加自定义 code)
@@ -3958,9 +3958,9 @@
   $ git add -A
   $ git commit -m '9.3 本地化 trans()方法'
   ```
-### 9,4 消息推送
+### 9,4 [消息推送](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[极光推送](https://learnku.com/courses/laravel-advance-training/6.x/message-push/5739#bc4e8c)
-## 10 API 测试和文档
+## 10 [API 测试和文档](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 ### 10.1 API 自动化测试介绍
 - 1.[自动化测试介绍](https://learnku.com/courses/laravel-advance-training/6.x/introduction-of-api-automation-test/5741)
 ### 10.2 Laravel API 集成测试
@@ -3969,5 +3969,5 @@
 - 1.[第三方黑盒测试（PostMan）](https://learnku.com/courses/laravel-advance-training/6.x/third-party-black-box-test/5743)
 ### 10.4 API 文档工具
 - 1.[PostMan、Apizza](https://learnku.com/courses/laravel-advance-training/6.x/api-document/5744)
-## 11 Oauth 认证--Passport
+## 11 [Oauth 认证--Passport](https://github.com/andy-love-coding/laravel3.0#%E7%9B%AE%E5%BD%95)
 - 1.[Oatuh2.0认证：Passport实现](https://learnku.com/courses/laravel-advance-training/6.x/passport-introduction/5746)
