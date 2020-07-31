@@ -1,3 +1,76 @@
+## 目录
+- [2 舞台布置](https://github.com/andy-love-coding/laravel3.0#2-%E8%88%9E%E5%8F%B0%E5%B8%83%E7%BD%AE)
+  - [2.2 安装 LaraBBS](https://github.com/andy-love-coding/laravel3.0#22-%E5%AE%89%E8%A3%85-larabbs)
+  - [2.5 Github 的 Restful HTTP API 设计分解](https://github.com/andy-love-coding/laravel3.0#25-github-%E7%9A%84-restful-http-api-%E8%AE%BE%E8%AE%A1%E5%88%86%E8%A7%A3)
+    - 2.正确使用 HTTP 状态码
+  - [2.7. API 基础环境](https://github.com/andy-love-coding/laravel3.0#27-api-%E5%9F%BA%E7%A1%80%E7%8E%AF%E5%A2%83)
+    - API 接口版本调试（prefix）
+- [3 手机注册](https://github.com/andy-love-coding/laravel3.0#3-%E6%89%8B%E6%9C%BA%E6%B3%A8%E5%86%8C)
+  - [3.1 手机注册流程讲解](https://github.com/andy-love-coding/laravel3.0#31-%E6%89%8B%E6%9C%BA%E6%B3%A8%E5%86%8C%E6%B5%81%E7%A8%8B%E8%AE%B2%E8%A7%A3)
+  - [3.2 短信提供商](https://github.com/andy-love-coding/laravel3.0#32-%E7%9F%AD%E4%BF%A1%E6%8F%90%E4%BE%9B%E5%95%86)
+    - 3.封装 ServiceProvider（easy-sms）
+  - [3.3 手机注册验证码](https://github.com/andy-love-coding/laravel3.0#33-%E6%89%8B%E6%9C%BA%E6%B3%A8%E5%86%8C%E9%AA%8C%E8%AF%81%E7%A0%81)
+    - 2.基类 API 控制器
+  - [3.4 构建用户注册接口](https://github.com/andy-love-coding/laravel3.0#34-%E6%9E%84%E5%BB%BA%E7%94%A8%E6%88%B7%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3)
+    - 3.API 资源
+    - 6.Resource 去掉包裹层 data
+  - [3.5 节流处理防止攻击](https://github.com/andy-love-coding/laravel3.0#35-%E8%8A%82%E6%B5%81%E5%A4%84%E7%90%86%E9%98%B2%E6%AD%A2%E6%94%BB%E5%87%BB)
+  - [3.6 图片验证码](https://github.com/andy-love-coding/laravel3.0#36-%E5%9B%BE%E7%89%87%E9%AA%8C%E8%AF%81%E7%A0%81)
+    - 1.安装 gregwar/captcha（composer 安装内存不够解决办法）
+- [4 第三方登录](https://github.com/andy-love-coding/laravel3.0#4-%E7%AC%AC%E4%B8%89%E6%96%B9%E7%99%BB%E5%BD%95)
+  - [4.1 微信登录流程讲解](https://github.com/andy-love-coding/laravel3.0#41-%E5%BE%AE%E4%BF%A1%E7%99%BB%E5%BD%95%E6%B5%81%E7%A8%8B%E8%AE%B2%E8%A7%A3)
+  - [4.2 微信开发者账号申请](https://github.com/andy-love-coding/laravel3.0#42-%E5%BE%AE%E4%BF%A1%E5%BC%80%E5%8F%91%E8%80%85%E8%B4%A6%E5%8F%B7%E7%94%B3%E8%AF%B7)
+  - [4.3 微信登录](https://github.com/andy-love-coding/laravel3.0#43-%E5%BE%AE%E4%BF%A1%E7%99%BB%E5%BD%95)
+    - 1.安装 socialiteproviders
+  - [4.4 微信登录功能开发](https://github.com/andy-love-coding/laravel3.0#44-%E5%BE%AE%E4%BF%A1%E7%99%BB%E5%BD%95%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91)
+  - [4.5 登录 API 获取 JWT 令牌](https://github.com/andy-love-coding/laravel3.0#45-%E7%99%BB%E5%BD%95-api-%E8%8E%B7%E5%8F%96-jwt-%E4%BB%A4%E7%89%8C)
+    - 2.安装 jwt-auth
+    - 5.tinker 中测试生成一个 token
+    - 8.刷新/删除 token
+  - [4.6 artisan 生成 token](https://github.com/andy-love-coding/laravel3.0#46-artisan-%E7%94%9F%E6%88%90-token)
+- [5 用户数据](https://github.com/andy-love-coding/laravel3.0#5-%E7%94%A8%E6%88%B7%E6%95%B0%E6%8D%AE)
+  - [5.1 获取用户信息](https://github.com/andy-love-coding/laravel3.0#51-%E8%8E%B7%E5%8F%96%E7%94%A8%E6%88%B7%E4%BF%A1%E6%81%AF)
+    - 4.屏蔽敏感信息（Resource 开关）
+  - [5.2 编辑用户信息](https://github.com/andy-love-coding/laravel3.0#52-%E7%BC%96%E8%BE%91%E7%94%A8%E6%88%B7%E4%BF%A1%E6%81%AF)
+    - 1.HTTP 提交数据有两种方式
+    - 4.编辑个人资料接口(exists:images,id)
+- [6 帖子数据](https://github.com/andy-love-coding/laravel3.0#6-%E5%B8%96%E5%AD%90%E6%95%B0%E6%8D%AE)
+  - [6.1 分类列表](https://github.com/andy-love-coding/laravel3.0#61-%E5%88%86%E7%B1%BB%E5%88%97%E8%A1%A8)
+    - 5.调整数据格式(增加 data 包裹层)
+  - [6.2 发布话题](https://github.com/andy-love-coding/laravel3.0#62-%E5%8F%91%E5%B8%83%E8%AF%9D%E9%A2%98)
+  - [6.3 修改话题](https://github.com/andy-love-coding/laravel3.0#63-%E4%BF%AE%E6%94%B9%E8%AF%9D%E9%A2%98)
+  - [6.4 删除话题](https://github.com/andy-love-coding/laravel3.0#64-%E5%88%A0%E9%99%A4%E8%AF%9D%E9%A2%98)
+  - [6.5 话题列表](https://github.com/andy-love-coding/laravel3.0#65-%E8%AF%9D%E9%A2%98%E5%88%97%E8%A1%A8)
+    - 5.Include机制 和 搜索条件
+      - 5.1 安装一个扩展包：spatie/laravel-query-builder
+    - 6.查询日志（query 日志）
+      - 6.1 安装 [laravel-query-logger]
+      - 6.3 查看日志，有没有产生 N+1 问题
+  - [6.6 话题详情](https://github.com/andy-love-coding/laravel3.0#66-%E8%AF%9D%E9%A2%98%E8%AF%A6%E6%83%85)
+    - 3.不使用路由模型绑定
+- [7 回复数据](https://github.com/andy-love-coding/laravel3.0#7-%E5%9B%9E%E5%A4%8D%E6%95%B0%E6%8D%AE)
+  - [7.1 话题回复](https://github.com/andy-love-coding/laravel3.0#71-%E8%AF%9D%E9%A2%98%E5%9B%9E%E5%A4%8D)
+  - [7.2 删除回复](https://github.com/andy-love-coding/laravel3.0#72-%E5%88%A0%E9%99%A4%E5%9B%9E%E5%A4%8D)
+  - [7.3 回复列表](https://github.com/andy-love-coding/laravel3.0#73-%E5%9B%9E%E5%A4%8D%E5%88%97%E8%A1%A8)
+    - 1.某个话题的回复列表
+      - 1.4 [调整 Include 参数 (继承QueryBuilder)]
+        - 1.4.1 新建一个 ReplyQuery（）（ReplyQuery 继承 QueryBuilder，它们都是查询构建器）
+  - [7.4 消息通知列表](https://github.com/andy-love-coding/laravel3.0#74-%E6%B6%88%E6%81%AF%E9%80%9A%E7%9F%A5%E5%88%97%E8%A1%A8)
+  - [7.5 未读消息统计](https://github.com/andy-love-coding/laravel3.0#75-%E6%9C%AA%E8%AF%BB%E6%B6%88%E6%81%AF%E7%BB%9F%E8%AE%A1)
+  - [7.6 标记通知为已读](https://github.com/andy-love-coding/laravel3.0#76-%E6%A0%87%E8%AE%B0%E9%80%9A%E7%9F%A5%E4%B8%BA%E5%B7%B2%E8%AF%BB)
+- [8 权限控制](https://github.com/andy-love-coding/laravel3.0#8-%E6%9D%83%E9%99%90%E6%8E%A7%E5%88%B6)
+  - [8.2 权限列表](https://github.com/andy-love-coding/laravel3.0#82-%E6%9D%83%E9%99%90%E5%88%97%E8%A1%A8)
+  - [8.3 显示用户角色](https://github.com/andy-love-coding/laravel3.0#83-%E6%98%BE%E7%A4%BA%E7%94%A8%E6%88%B7%E8%A7%92%E8%89%B2)
+    - 5.提炼抽象出 TopicQuery
+- [9 其他功能](https://github.com/andy-love-coding/laravel3.0#9-%E5%85%B6%E4%BB%96%E5%8A%9F%E8%83%BD)
+  - [9.1 资源推荐接口](https://github.com/andy-love-coding/laravel3.0#91-%E8%B5%84%E6%BA%90%E6%8E%A8%E8%8D%90%E6%8E%A5%E5%8F%A3)
+  - [9.2 活跃用户接口](https://github.com/andy-love-coding/laravel3.0#92-%E6%B4%BB%E8%B7%83%E7%94%A8%E6%88%B7%E6%8E%A5%E5%8F%A3)
+  - [9.3 本地化](https://github.com/andy-love-coding/laravel3.0#93-%E6%9C%AC%E5%9C%B0%E5%8C%96)
+    - 2.本地化交给客户端(响应中添加自定义 code)
+    - 3.接口根据客户端语言切换错误信息
+  - [9,4 消息推送](https://github.com/andy-love-coding/laravel3.0#94-%E6%B6%88%E6%81%AF%E6%8E%A8%E9%80%81)
+- [10 API 测试和文档](https://github.com/andy-love-coding/laravel3.0#10-api-%E6%B5%8B%E8%AF%95%E5%92%8C%E6%96%87%E6%A1%A3)
+- [11 Oauth 认证--Passport](https://github.com/andy-love-coding/laravel3.0#11-oauth-%E8%AE%A4%E8%AF%81--passport)
 ## 2 舞台布置
 ### 2.2 安装 LaraBBS
 - 1.做好准备
@@ -197,7 +270,6 @@
   - 1.[手机注册流程讲解](https://learnku.com/courses/laravel-advance-training/6.x/explanation-of-mobile-registration-process/5701)
 ### 3.2 短信提供商
 - 1.服务商注册 [阿里云](https://www.aliyun.com/product/sms?spm=5176.10695662.1128094.1.2a6b4beefNNW54&aly_as=hYtZKQhL)
-
   - 选择：短信服务 》国内消息 
     - 然后： 》签名管理 》添加签名
     - 然后： 》模板管理 》添加模板
@@ -3145,7 +3217,7 @@
   Route::get('notifications', 'NotificationsController@index')
       ->name('notifications.index');
   ```
-- 2.2. 增加 NotificationResource
+- 2.增加 NotificationResource
   ```
   $ php artisan make:resource NotificationResource
   ```
@@ -3897,5 +3969,5 @@
 - 1.[第三方黑盒测试（PostMan）](https://learnku.com/courses/laravel-advance-training/6.x/third-party-black-box-test/5743)
 ### 10.4 API 文档工具
 - 1.[PostMan、Apizza](https://learnku.com/courses/laravel-advance-training/6.x/api-document/5744)
-### 11 Oauth 认证--Passport
+## 11 Oauth 认证--Passport
 - 1.[Oatuh2.0认证：Passport实现](https://learnku.com/courses/laravel-advance-training/6.x/passport-introduction/5746)
