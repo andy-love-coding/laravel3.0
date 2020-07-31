@@ -3886,3 +3886,16 @@
   $ git add -A
   $ git commit -m '9.3 本地化 trans()方法'
   ```
+### 9,4 消息推送
+- 1.[极光推送](https://learnku.com/courses/laravel-advance-training/6.x/message-push/5739#bc4e8c)
+## 10 API 测试和文档
+### 10.1 API 自动化测试介绍
+- 1.[自动化测试介绍](https://learnku.com/courses/laravel-advance-training/6.x/introduction-of-api-automation-test/5741)
+### 10.2 Laravel API 集成测试
+- 1.[API 集成测试(PHPUnit)](https://learnku.com/courses/laravel-advance-training/6.x/laravel-api-integration-test/5742)
+### 10.3 第三方黑盒测试
+- 1.[第三方黑盒测试（PostMan）](https://learnku.com/courses/laravel-advance-training/6.x/third-party-black-box-test/5743)
+### 10.4 API 文档工具
+- 1.[PostMan、Apizza](https://learnku.com/courses/laravel-advance-training/6.x/api-document/5744)
+### 11 Oauth 认证--Passport
+- 1.[Oatuh2.0认证：Passport实现](https://learnku.com/courses/laravel-advance-training/6.x/passport-introduction/5746)
